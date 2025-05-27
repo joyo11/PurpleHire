@@ -47,6 +47,8 @@ This approach ensures the interview is both efficient and fair: it ends early wh
 
 ### Technical Tidbits
 - **Ending detection** is robust, using both LLM tool calls and backend substring checks.
+- **Structured LLM function calling** is used (e.g., `end_interview`, `mark_question_complete`) to let the agent signal interview state transitions, making the flow robust and less reliant on brittle substring checks.
+- **Question progression logic** ensures the interview flow does not skip questions, even if there is back-and-forth or clarification within a single question.
 - **Memory handling** is implemented to avoid re-asking for the candidate's name, though perfect memory is a known challenge for LLMs.
 - **Error handling** is user-friendly, with recovery prompts for unclear or off-topic responses.
 
@@ -68,9 +70,19 @@ This approach ensures the interview is both efficient and fair: it ends early wh
    ```bash
    npm install
    ```
-5. Initialize the database schema (useful for a fresh start or if you encounter database errors):
+4. Generate the Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+6. Reset the database schema (optional):
    ```bash
    npx prisma migrate reset
+   ```
+   It will prompt:
+   ```
+   Are you sure you want to reset your database? All data will be lost. › (y/N)
+   ```
+   Type `yes` and press Enter to continue.
    ```
 7. Start your development server:
    ```bash

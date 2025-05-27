@@ -1,4 +1,6 @@
 // Mohammad Shafay Joyo @ 2025
+
+// Import OpenAI SDK and types
 import OpenAI from 'openai';
 import { Message } from "@/types/chat";
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
@@ -8,12 +10,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
 
-// --- Initial Conversation Handling ---
-// If the first user message is an affirmative response to the opening question (Question 1),
-// respond with: "Great! The role is based in NYC and we operate on a hybrid schedule. Could I get your name to get started?"
-// Then proceed to ask Question 2 (Please share your name).
-
-// System prompt for the interview chatbot
+// --- System Prompt ---
+// This prompt defines the interview script, validation, and flow for the LLM
 const SYSTEM_PROMPT = `
 // === Role Details ===
 Role: Full Stack Software Engineer
@@ -95,14 +93,14 @@ Sponsorship: H1B OK
 
 4. "Do you have 2+ years of full stack development experience?"
 
-  - If the candidate asks a clarifying question (like “What counts as full stack?” or “How do you define it?”):
+  - If the candidate asks a clarifying question (like "What counts as full stack?" or "How do you define it?"):
       - If it's clearly related to experience:
-          Respond: "Great question! We consider full stack experience to mean working on both the frontend and backend — either in a job, internship, or serious project. Would you say you’ve done that for about two years or more?"
-      - If it’s more general:
-          Respond: "Just to clarify, I’m asking whether you’ve spent around two years doing both frontend and backend development — either professionally or through internships. Does that sound like your experience?"
+          Respond: "Great question! We consider full stack experience to mean working on both the frontend and backend — either in a job, internship, or serious project. Would you say you've done that for about two years or more?"
+      - If it's more general:
+          Respond: "Just to clarify, I'm asking whether you've spent around two years doing both frontend and backend development — either professionally or through internships. Does that sound like your experience?"
 
   - If they say no:
-      Respond: "Thanks for letting me know! We are looking for someone with at least two years of work experience, but I’d still love to hear more. Have you done any internships or freelance projects that involved full stack work?"
+      Respond: "Thanks for letting me know! We are looking for someone with at least two years of work experience, but I'd still love to hear more. Have you done any internships or freelance projects that involved full stack work?"
       - If still no:
           end_interview("experience_mismatch")
 
@@ -122,7 +120,7 @@ Sponsorship: H1B OK
 6. "What was your role in that project?"
   - If answer is just "yes", "no", or too short:
       - If first follow-up attempt not done:
-          Respond: "Great to hear about your role! I’d love if you could tell me more about your responsibilities as a [specific role] during the project."
+          Respond: "Great to hear about your role! I'd love if you could tell me more about your responsibilities as a [specific role] during the project."
           (record follow-up asked)
       - Else:
           Respond: "Thanks for sharing. Let's continue."
@@ -135,7 +133,7 @@ Sponsorship: H1B OK
           Respond: "Thanks for sharing that. You mentioned facing [challenge summary]. Could you tell me a bit more about how you approached solving it? Any steps or resources that helped?"
           (record follow-up asked)
       - Else:
-          Respond: "Thanks for your answer. Let’s move on."
+          Respond: "Thanks for your answer. Let's move on."
           mark_question_complete("biggest_challenge")
           Proceed to next question
   - If clear/detailed answer received:
@@ -235,6 +233,11 @@ Sponsorship: H1B OK
 // === End ===
 
 `;
+
+/**
+ * Generates a response from the LLM based on the conversation history and current question.
+ * Handles tool calls for ending the interview and cleans up the response text.
+ */
 export async function generateResponse(
   messages: Message[],
   currentQuestion: string
@@ -245,11 +248,13 @@ export async function generateResponse(
       return { text: "I apologize, but I'm not properly configured at the moment." };
     }
 
+    // Format conversation history for OpenAI API
     const conversationHistory: ChatCompletionMessageParam[] = messages.map((msg) => ({
       role: msg.role === "user" ? "user" : "assistant",
       content: msg.content,
     }));
 
+    // Call OpenAI API for chat completion
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -266,6 +271,7 @@ export async function generateResponse(
 
     const message = response.choices[0].message;
 
+    // Check for tool call to end the interview
     if (message.tool_calls && Array.isArray(message.tool_calls)) {
       const endInterviewCall = message.tool_calls.find(tc => tc.function?.name === "end_interview");
       if (endInterviewCall) {
@@ -295,6 +301,10 @@ export async function generateResponse(
   }
 }
 
+/**
+ * Sends a message to the LLM and returns the assistant's reply.
+ * Handles tool calls for ending the interview.
+ */
 export async function sendMessage(messages: Message[], isInitial = false): Promise<{ message: any; endInterviewReason?: string }> {
   try {
     const completion = await openai.chat.completions.create({
@@ -309,6 +319,7 @@ export async function sendMessage(messages: Message[], isInitial = false): Promi
 
     const message = completion.choices[0].message;
 
+    // Check for tool call to end the interview
     if (message.tool_calls && Array.isArray(message.tool_calls)) {
       const endInterviewCall = message.tool_calls.find(tc => tc.function?.name === "end_interview");
       if (endInterviewCall) {

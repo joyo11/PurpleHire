@@ -1,14 +1,16 @@
 // Mohammad Shafay Joyo @ 2025
 
+// Type definition for an interview question
 export type InterviewQuestion = {
-  id: string;
-  text: string;
-  type: "text" | "choice";
-  choices?: string[];
-  nextQuestion: string | null;
-  actions: { onComplete: (() => void) | null };
+  id: string; // Unique identifier for the question
+  text: string; // The question text shown to the candidate
+  type: "text" | "choice"; // Type of input expected
+  choices?: string[]; // Choices for 'choice' type questions
+  nextQuestion: string | null; // ID of the next question, or null if last
+  actions: { onComplete: (() => void) | null }; // Optional action on completion
 };
 
+// The interview script as a map of question IDs to question objects
 export const interviewQuestions: Record<string, InterviewQuestion> = {
   initial: {
     id: "initial",
@@ -85,6 +87,11 @@ export const interviewQuestions: Record<string, InterviewQuestion> = {
   },
 };
 
+/**
+ * Validates the candidate's answer for a given question.
+ * For 'choice' questions, checks if the answer matches one of the choices.
+ * For 'text' questions, checks if the answer is non-empty.
+ */
 export function validateAnswer(questionId: string, answer: string): boolean {
   const question = interviewQuestions[questionId];
   
@@ -95,6 +102,9 @@ export function validateAnswer(questionId: string, answer: string): boolean {
   return answer.trim().length > 0;
 }
 
+/**
+ * Action to handle ending the interview (can be extended for side effects).
+ */
 function endInterview() {
   // Logic to handle ending the interview
   console.log("Interview has ended.");
