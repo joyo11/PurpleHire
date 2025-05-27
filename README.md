@@ -52,47 +52,30 @@ This approach ensures the interview is both efficient and fair: it ends early wh
 
 ---
 
-### Setup Instructions
+## Setup Instructions
 
-1. **Clone the Repository**
+1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/purplehire-agent.git
-   cd purplehire-agent
+   git clone https://github.com/joyo11/PurpleHire.git
    ```
-
-2. **Install Dependencies**
+2. In the root folder, create a `.env` file if it doesn't already exist.
+3. Add your environment variables in the `.env` file, such as:
+   ```env
+   DATABASE_URL="file:./dev.db"
+   OPENAI_API_KEY=your-api-key-here
+   ```
+4. Install all project dependencies:
    ```bash
    npm install
-   # or
-   yarn install
    ```
-
-3. **Set Up Environment Variables**
-   - Copy the example environment file and fill in your secrets:
-     ```bash
-     cp .env.example .env
-     ```
-   - Edit `.env` and add your OpenAI API key and any other required variables (e.g., database URL).
-
-4. **Set Up the Database**
-   - Run Prisma migrations to set up the SQLite database:
-     ```bash
-     npx prisma migrate dev --name init
-     ```
-
-5. **Start the Development Server**
+5. Generate the Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+6. Start your development server:
    ```bash
    npm run dev
-   # or
-   yarn dev
    ```
-   - The app will be available at [http://localhost:3000](http://localhost:3000).
-
-#### Optional: Seed the Database
-If you have a seed script, run:
-```bash
-npx prisma db seed
-```
 
 ---
 
