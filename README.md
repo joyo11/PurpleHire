@@ -68,11 +68,11 @@ This approach ensures the interview is both efficient and fair: it ends early wh
    ```bash
    npm install
    ```
-5. Generate the Prisma client:
+5. Initialize the database schema (useful for a fresh start or if you encounter database errors):
    ```bash
-   npx prisma generate
+   npx prisma migrate reset
    ```
-6. Start your development server:
+7. Start your development server:
    ```bash
    npm run dev
    ```
