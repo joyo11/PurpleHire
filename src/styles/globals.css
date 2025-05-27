@@ -1,0 +1,362 @@
+/* Mohammad Shafay Joyo @ 2025 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #FF1493;
+  --bg: #000000;
+  --surface: #111111;
+  --surface-2: #1a1a1a;
+}
+
+/* Force dark theme */
+html, body {
+  @apply bg-black text-white;
+  background-color: var(--bg);
+}
+
+#__next {
+  @apply min-h-screen bg-black;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full transition-colors;
+  background-color: rgba(217, 217, 227, 0.1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(217, 217, 227, 0.2);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 217, 227, 0.1) transparent;
+}
+
+/* Message animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-animation {
+  animation: slideIn 0.2s ease-out forwards;
+}
+
+/* Typewriter effect */
+@keyframes typewriter {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.typewriter {
+  overflow: hidden;
+  border-right: .15em solid var(--primary);
+  white-space: nowrap;
+  margin: 0 auto;
+  letter-spacing: .15em;
+  animation: typewriter 3.5s steps(40, end), blink-caret .75s step-end infinite;
+}
+
+@keyframes blink-caret {
+  from,
+  to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: var(--primary);
+  }
+}
+
+.chat-history-header {
+  font-weight: 500;
+  font-size: 24px;
+  font-family: sans-serif;
+}
+
+/* Typing indicator animation */
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgb(147, 0, 255); /* hot/bright purple */
+  animation: typingAnimation 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingAnimation {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* Remove happy-face class and blink animation */
+
+.typewriter-message {
+  font-size: 24px;
+  color: rgb(147, 0, 255); 
+  overflow: hidden;
+  white-space: nowrap;
+  width: 550px;
+  margin: 0 auto;
+  border-right: 0.15em solid transparent;
+  animation: 
+    typing-message 1.4s steps(40, end),
+    blink-cursor 0.65s step-end 4,
+    hide-cursor 0s 1.4s forwards;
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+
+@keyframes typing-message {
+  from { width: 0 }
+  to { width: 550px }
+}
+
+@keyframes blink-cursor {
+  from, to { border-color: transparent }
+  50% { border-color: rgb(147, 0, 255)}
+}
+
+@keyframes hide-cursor {
+  to { border-color: transparent }
+}
+
+/* Add hover effects for buttons */
+.hover-effect {
+  @apply transition-all duration-200 hover:opacity-80 active:scale-95;
+}
+
+/* Add subtle shadow to input and messages */
+.shadow-soft {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth scrolling for message container */
+.messages-container {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #4B5563 transparent;
+}
+
+.messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background-color: #4B5563;
+  border-radius: 20px;
+}
+
+/* Add fade effect for long messages */
+.message-fade {
+  mask-image: linear-gradient(to bottom, black 95%, transparent 100%);
+}
+
+/* Bot message typewriter effect */
+.bot-message-typing::after {
+  content: '|';
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { opacity: 1 }
+  50% { opacity: 0 }
+}
+
+/* Remove focus outlines globally */
+* {
+  outline: none !important;
+}
+
+*:focus {
+  outline: none !important;
+}
+
+button:focus {
+  outline: none !important;
+}
+
+input:focus {
+  outline: none !important;
+}
+
+/* Keep other transitions specific */
+.transition-smooth {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Smooth transitions */
+.transition-smooth {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Smooth scrolling for message container */
+.messages-container {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #4B5563 transparent;
+}
+
+.messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background-color: #4B5563;
+  border-radius: 20px;
+}
+
+/* Add fade effect for long messages */
+.message-fade {
+  mask-image: linear-gradient(to bottom, black 95%, transparent 100%);
+}
+
+/* Bot message typewriter effect */
+.bot-message-typing::after {
+  content: '|';
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { opacity: 1 }
+  50% { opacity: 0 }
+}
+
+/* Remove focus outlines globally */
+* {
+  outline: none !important;
+}
+
+*:focus {
+  outline: none !important;
+}
+
+button:focus {
+  outline: none !important;
+}
+
+input:focus {
+  outline: none !important;
+}
+
+/* Keep other transitions specific */
+.transition-smooth {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+/* Keep the original typing dot animation */
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: typingAnimation 1.4s infinite ease-in-out;
+}
+
+/* Keep only one global transition */
+* {
+  transition: all 0.000000000001ms ;
+}
+
+.duration-200 {
+  transition-duration: 0.000000000001ms;
+}
+
+/* Add fade-in animation for messages */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Add scale animation for buttons */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Add pulse animation for the bot avatar */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 132, 198, 0.4);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(255, 132, 198, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 132, 198, 0);
+  }
+}
+
+/* Apply animations to elements */
+.message-fade-in {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.button-scale {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+.bot-avatar {
+  animation: pulse 2s infinite;
+}
