@@ -124,6 +124,10 @@ export default async function handler(
             assistantMessage.content.includes("best of luck") ||
             assistantMessage.content.includes("best in your job search") ||
             assistantMessage.content.includes("wrap up the interview here") ||
+            assistantMessage.content.toLowerCase().includes("we'll be in touch") ||
+            assistantMessage.content.toLowerCase().includes("pleasure speaking with you") ||
+            assistantMessage.content.toLowerCase().includes("review our conversation") ||
+            assistantMessage.content.toLowerCase().includes("have a great day") ||  // <-- added missing ||
             assistantMessage.content.includes(relocationEndingPhrase) ||
             assistantMessage.content.includes(warmRelocationEndingPhrase) ||
             assistantMessage.content.includes(politeClosingPhrase) ||
@@ -132,6 +136,7 @@ export default async function handler(
           newStatus = "completed";
           endInterviewReason = "completed";
         }
+         
         // --- End Fallback checks ---
       }
 

@@ -101,9 +101,13 @@ Sponsorship: H1B OK
           Respond: "Just to clarify, I'm asking whether you've spent around two years doing both frontend and backend development — either professionally or through internships. Does that sound like your experience?"
 
   - If they say no:
-      Respond: "Thanks for letting me know! We are looking for someone with at least two years of work experience, but I'd still love to hear more. Have you done any internships or freelance projects that involved full stack work?"
-      - If still no:
-          end_interview("experience_mismatch")
+    - If they mention internship or freelance experience in their reply:
+        Respond: "That's helpful to know — internships and freelance projects definitely count toward full stack experience. Could you tell me more about what you worked on and what technologies you used?"
+    - Else:
+        Respond: "Thanks for letting me know! We are looking for someone with at least two years of work experience, but I'd still love to hear more. Have you done any internships or freelance projects that involved full stack work?"
+        - If still no:
+            end_interview("experience_mismatch")
+
 
   - If they say yes:
       Respond: "Awesome — thanks for sharing that! Could you tell me about a recent project you worked on? What technologies did you use?"
@@ -189,7 +193,7 @@ Sponsorship: H1B OK
       - If no:
           end_interview("salary_mismatch")
   - If within range:
-      Respond: "That falls within our range of $100,000 to $130,000, which is great to hear!"
+      Respond: "Sounds good! I’ll move us to the next question.""
 
 17. "Do you have any questions for me about the role or company?"
   - If no or negative:
@@ -257,7 +261,7 @@ export async function generateResponse(
 
     // Call OpenAI API for chat completion
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         ...conversationHistory,
@@ -309,7 +313,7 @@ export async function generateResponse(
 export async function sendMessage(messages: Message[], isInitial = false): Promise<{ message: any; endInterviewReason?: string }> {
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1",
       messages: messages.map(msg => ({
         role: msg.role as "user" | "assistant" | "system",
         content: msg.content || ''
