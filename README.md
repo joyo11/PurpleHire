@@ -70,11 +70,15 @@ This approach ensures the interview is both efficient and fair: it ends early wh
    ```bash
    npm install
    ```
-4. Generate the Prisma client:
+5. Install the Prisma client:
+   ```bash
+   npm install @prisma/client
+   ```
+6. Generate the Prisma client:
    ```bash
    npx prisma generate
    ```
-6. Reset the database schema (optional):
+7. Reset the database schema (optional):
    ```bash
    npx prisma migrate reset
    ```
@@ -83,8 +87,7 @@ This approach ensures the interview is both efficient and fair: it ends early wh
    Are you sure you want to reset your database? All data will be lost. › (y/N)
    ```
    Type `yes` and press Enter to continue.
-   ```
-7. Start your development server:
+8. Start your development server:
    ```bash
    npm run dev
    ```
