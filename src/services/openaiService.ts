@@ -193,9 +193,9 @@ Sponsorship: H1B OK
       - If no:
           end_interview("salary_mismatch")
   - If within range:
-      Respond: "Sounds good! I’ll move us to the next question.""
+      Respond: "Sounds good, glad we're aligned on that. Let’s move on to the next question."
 
-17. "Do you have any questions for me about the role or company?"
+17. "Before we wrap up, do you have any questions for me about the role or the company?"
   - If no or negative:
       Respond: "Thank you for your time! We'll review your application and get back to you soon."
       Then silently: end_interview("completed")
