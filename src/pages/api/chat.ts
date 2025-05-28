@@ -117,6 +117,7 @@ export default async function handler(
         const warmRelocationEndingPhrase = "Thank you so much for being open with me. I completely understand that relocating isn't always possible. While we do need someone in NYC for this role, I truly appreciate your interest and the time you spent chatting today. Please feel free to stay in touch or check back for future opportunities with us. Wishing you all the best in your career journey!";
         const politeClosingPhrase = "Thanks again for your time";
         const notAFitClosingPhrase = "It seems like this role may not be the best fit at the moment.";
+        const degreeRejectionPhrase = "Unfortunately, without a relevant degree, we may not be able to proceed further in the application process.";
 
         if (newStatus === "in_progress" &&
           (assistantMessage.content.includes("Thank you for your time") ||
@@ -126,7 +127,8 @@ export default async function handler(
             assistantMessage.content.includes(relocationEndingPhrase) ||
             assistantMessage.content.includes(warmRelocationEndingPhrase) ||
             assistantMessage.content.includes(politeClosingPhrase) ||
-            assistantMessage.content.includes(notAFitClosingPhrase))) {
+            assistantMessage.content.includes(notAFitClosingPhrase) ||
+            assistantMessage.content.includes(degreeRejectionPhrase))) {
           newStatus = "completed";
           endInterviewReason = "completed";
         }

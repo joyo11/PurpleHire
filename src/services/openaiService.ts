@@ -89,6 +89,7 @@ Sponsorship: H1B OK
   - If no:
       Respond: "Do you have a related degree like IT or Software Engineering?"
       - If no again:
+          Respond: "Unfortunately, without a relevant degree, we may not be able to proceed further in the application process. I appreciate your time today, and if you ever change your mind or have further questions, feel free to reach out. Have a great day!"
           end_interview("degree_requirement")
 
 4. "Do you have 2+ years of full stack development experience?"
@@ -120,7 +121,7 @@ Sponsorship: H1B OK
 6. "What was your role in that project?"
   - If answer is just "yes", "no", or too short:
       - If first follow-up attempt not done:
-          Respond: "Great to hear about your role! I'd love if you could tell me more about your responsibilities as a [specific role] during the project."
+          Respond: "That's awesome! I'd love to hear more about what you were responsible for in your role as a [specific role] on that project."
           (record follow-up asked)
       - Else:
           Respond: "Thanks for sharing. Let's continue."

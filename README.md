@@ -98,6 +98,10 @@ This approach ensures the interview is both efficient and fair: it ends early wh
   Handles early exits, clarifications, and follow-up questions based on candidate responses.
 - **Session Persistence:**
   All conversations are stored in a database, allowing users to revisit and review past interviews.
+- **Session History & Management:**
+  Users can view and return to past interview sessions, and can change the names of their sessions for easier organization.
+- **FAQ Access:**
+  Users can access a FAQ section for common questions about the interview process or the platform.
 - **Role Q&A:**
   The Purplehire Agent can answer basic questions about the role or company, based on static knowledge in the system prompt.
 - **Robust Error Handling:**
