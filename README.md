@@ -72,7 +72,7 @@ This approach ensures the interview is both efficient and fair: it ends early wh
    ```
 5. Install the Prisma client:
    ```bash
-   npm install @prisma/client
+   npm install prisma@6.8.2 @prisma/client@6.8.2
    ```
 6. Generate the Prisma client:
    ```bash
