@@ -263,16 +263,26 @@ export default function ChatInterface() {
   const fetchConversations = async () => {
     try {
       const response = await fetch('/api/conversations');
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch conversations: ${response.status}`);
+      }
+
       const data = await response.json();
-      
+      const apiConversations = Array.isArray((data as any)?.conversations)
+        ? (data as any).conversations
+        : [];
+
       // Sort conversations by date
-      const sortedConversations = data.conversations.sort((a: Conversation, b: Conversation) => {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      
+      const sortedConversations = apiConversations.sort(
+        (a: Conversation, b: Conversation) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
       setConversations(sortedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      setConversations([]);
     }
   };
 
