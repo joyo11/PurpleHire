@@ -27,10 +27,13 @@
     "typescript": "^5.7.3"
   },
   "scripts": {
+    "prisma:generate:sqlite": "prisma generate --schema prisma/schema.sqlite.prisma",
+    "prisma:dbpush:sqlite": "prisma db push --schema prisma/schema.sqlite.prisma",
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "node scripts/prisma-postinstall.mjs"
   }
 }
