@@ -5,6 +5,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-fredoka)', 'system-ui', 'sans-serif'],
+      },
       colors: {
         primary: {
           DEFAULT: "#FF1493", // Pink
