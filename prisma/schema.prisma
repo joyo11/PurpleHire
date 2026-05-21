@@ -62,6 +62,20 @@ model User {
   createdAt     DateTime  @default(now())
   accounts      Account[]
   sessions      Session[]
+  roles         Role[]
+}
+
+model Role {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  jdText        String   @db.Text
+  interviewPlan String   @db.Text
+  createdAt     DateTime @default(now())
+  recruiterId   String
+  recruiter     User     @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+
+  @@index([recruiterId])
 }
 
 model VerificationToken {
