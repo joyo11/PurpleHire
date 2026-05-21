@@ -9,12 +9,17 @@ generator client {
 }
 
 model Conversation {
-  id        String    @id @default(cuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  status    String    @default("in_progress")
-  metadata  String
-  messages  Message[]
+  id          String     @id @default(cuid())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  status      String     @default("in_progress")
+  endReason   String?
+  metadata    String
+  messages    Message[]
+  candidateId String?
+  candidate   Candidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  @@index([candidateId])
 }
 
 model Message {
@@ -66,16 +71,32 @@ model User {
 }
 
 model Role {
-  id            String   @id @default(cuid())
-  slug          String   @unique
+  id            String      @id @default(cuid())
+  slug          String      @unique
   title         String
-  jdText        String   @db.Text
-  interviewPlan String   @db.Text
-  createdAt     DateTime @default(now())
+  jdText        String      @db.Text
+  interviewPlan String      @db.Text
+  createdAt     DateTime    @default(now())
   recruiterId   String
-  recruiter     User     @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  recruiter     User        @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  candidates    Candidate[]
 
   @@index([recruiterId])
+}
+
+model Candidate {
+  id             String         @id @default(cuid())
+  name           String
+  email          String
+  createdAt      DateTime       @default(now())
+  roleId         String
+  role           Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  conversations  Conversation[]
+  score          Int?
+  verdict        String?        @db.Text
+  scoredAt       DateTime?
+
+  @@index([roleId])
 }
 
 model VerificationToken {
