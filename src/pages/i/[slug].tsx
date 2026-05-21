@@ -78,7 +78,7 @@ export default function CandidatePage({ slug, roleTitle }: Props) {
             {roleTitle}
           </h1>
           <p className="mb-6 text-sm text-white/60">
-            Ava, the AI recruiter, will ask you a few questions about your
+            PurpleHire, the AI recruiter, will ask you a few questions about your
             background and the role. Your answers will be shared with the
             hiring team. Takes ~10 minutes.
           </p>

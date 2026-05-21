@@ -103,7 +103,7 @@ export default function Transcript({
                   >
                     {m.role === "assistant" && (
                       <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-500 text-xs font-semibold">
-                        A
+                        P
                       </div>
                     )}
                     <div

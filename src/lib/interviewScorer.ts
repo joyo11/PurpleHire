@@ -40,7 +40,7 @@ export async function scoreInterview(conversationId: string): Promise<void> {
   const transcript = conversation.messages
     .map(
       (m) =>
-        `${m.role === "assistant" ? "Interviewer (Ava)" : "Candidate"}: ${m.content}`,
+        `${m.role === "assistant" ? "Interviewer (PurpleHire)" : "Candidate"}: ${m.content}`,
     )
     .join("\n\n");
 

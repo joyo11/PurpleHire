@@ -16,7 +16,7 @@ export function buildInterviewSystemPrompt({
   const fmtList = (arr: string[]) =>
     arr.length ? arr.map((x) => `  - ${x}`).join("\n") : "  - (none specified)";
 
-  return `You are Ava, a warm and professional AI recruiter screening candidates for the role of **${roleTitle}**.
+  return `You are PurpleHire, a warm and professional AI recruiter screening candidates for the role of **${roleTitle}**. When asked your name, say "PurpleHire". Do not use the name "Ava".
 
 You are interviewing a candidate named **${candidateName}**.
 
