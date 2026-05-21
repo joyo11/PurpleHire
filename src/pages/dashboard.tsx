@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 import { useState } from "react";
 import { GetServerSideProps } from "next";
 import { getServerSession } from "next-auth/next";
@@ -11,6 +12,8 @@ type RoleSummary = {
   slug: string;
   title: string;
   createdAt: string;
+  candidateCount: number;
+  completedCount: number;
 };
 
 type Props = {
@@ -44,7 +47,10 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
         setError(data.error || "Something went wrong.");
         return;
       }
-      setRoles([data.role, ...roles]);
+      setRoles([
+        { ...data.role, candidateCount: 0, completedCount: 0 },
+        ...roles,
+      ]);
       setTitle("");
       setJdText("");
     } catch {
@@ -143,13 +149,33 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                 {roles.map((role) => (
                   <li
                     key={role.id}
-                    className="rounded-xl border border-white/10 bg-white/5 p-4"
+                    className="rounded-xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20"
                   >
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <span className="font-medium">{role.title}</span>
+                    <div className="mb-3 flex items-baseline justify-between">
+                      <Link
+                        href={`/dashboard/${role.slug}`}
+                        className="font-medium hover:underline"
+                      >
+                        {role.title}
+                      </Link>
                       <span className="text-xs text-white/40">
                         {new Date(role.createdAt).toLocaleDateString()}
                       </span>
+                    </div>
+                    <div className="mb-3 flex items-center gap-4 text-xs text-white/60">
+                      <span>
+                        {role.completedCount} completed
+                      </span>
+                      <span className="text-white/30">·</span>
+                      <span>
+                        {role.candidateCount - role.completedCount} in progress
+                      </span>
+                      <Link
+                        href={`/dashboard/${role.slug}`}
+                        className="ml-auto text-white/70 hover:text-white"
+                      >
+                        View candidates →
+                      </Link>
                     </div>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 truncate rounded-md bg-black/40 px-3 py-2 text-xs text-white/70">
@@ -183,7 +209,21 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const roles = await prisma.role.findMany({
     where: { recruiterId: userId },
     orderBy: { createdAt: "desc" },
-    select: { id: true, slug: true, title: true, createdAt: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      createdAt: true,
+      candidates: {
+        select: {
+          conversations: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { status: true },
+          },
+        },
+      },
+    },
   });
 
   const host = ctx.req.headers.host ?? "localhost:3000";
@@ -202,6 +242,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         slug: r.slug,
         title: r.title,
         createdAt: r.createdAt.toISOString(),
+        candidateCount: r.candidates.length,
+        completedCount: r.candidates.filter(
+          (c) => c.conversations[0]?.status === "completed",
+        ).length,
       })),
     },
   };
