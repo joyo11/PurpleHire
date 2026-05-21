@@ -31,7 +31,7 @@
     "prisma:dbpush:sqlite": "prisma db push --schema prisma/schema.sqlite.prisma",
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss --skip-generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "node scripts/prisma-postinstall.mjs"
