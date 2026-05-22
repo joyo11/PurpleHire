@@ -58,7 +58,7 @@ export default function RoleDetail({ role, baseUrl, candidates }: Props) {
       <Head>
         <title>{role.title} · PurpleHire</title>
       </Head>
-      <main className="min-h-screen bg-black px-4 py-8 text-white">
+      <main className="min-h-screen bg-black px-4 py-6 text-white sm:py-8">
         <div className="mx-auto max-w-4xl">
           <Link
             href="/dashboard"
@@ -104,9 +104,9 @@ export default function RoleDetail({ role, baseUrl, candidates }: Props) {
                     key={c.id}
                     className="rounded-xl border border-white/10 bg-white/5 p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
                           <p className="truncate font-medium">{c.name}</p>
                           {c.score !== null ? (
                             <span
@@ -120,14 +120,16 @@ export default function RoleDetail({ role, baseUrl, candidates }: Props) {
                             </span>
                           )}
                         </div>
-                        <p className="mb-1 text-xs text-white/40">{c.email}</p>
+                        <p className="mb-1 truncate text-xs text-white/40">
+                          {c.email}
+                        </p>
                         {c.verdict && (
                           <p className="text-sm text-white/70">{c.verdict}</p>
                         )}
                       </div>
                       <Link
                         href={`/dashboard/${role.slug}/${c.id}`}
-                        className="shrink-0 rounded-md border border-white/15 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/5"
+                        className="shrink-0 self-start rounded-md border border-white/15 px-3 py-1.5 text-xs text-white/80 transition hover:bg-white/5"
                       >
                         Transcript
                       </Link>

@@ -53,17 +53,17 @@ export default function Home() {
 
       <main className="min-h-screen bg-black text-white">
         {/* Nav */}
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
           <Link href="/" className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-500 text-sm font-bold text-white">
               P
             </span>
             <span className="text-base font-semibold">PurpleHire</span>
           </Link>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-1 text-sm sm:gap-2">
             <Link
               href="/signin"
-              className="rounded-md px-3 py-1.5 text-white/70 transition hover:text-white"
+              className="hidden rounded-md px-3 py-1.5 text-white/70 transition hover:text-white sm:inline-block"
             >
               Sign in
             </Link>
@@ -77,9 +77,9 @@ export default function Home() {
         </nav>
 
         {/* Hero */}
-        <section className="mx-auto grid max-w-6xl gap-12 px-6 pt-12 pb-20 lg:grid-cols-2 lg:gap-16 lg:pt-20">
+        <section className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-16 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-2 lg:gap-16 lg:pt-20">
           <div className="flex flex-col justify-center">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
+            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-500 opacity-60" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-purple-500" />
@@ -87,7 +87,7 @@ export default function Home() {
               AI recruiter · live
             </div>
 
-            <h1 className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="mb-5 text-[2.5rem] font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
               AI interviews for{" "}
               <span className="bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text italic text-transparent">
                 any
@@ -95,30 +95,30 @@ export default function Home() {
               job description.
             </h1>
 
-            <p className="mb-8 max-w-lg text-lg text-white/60">
+            <p className="mb-7 max-w-lg text-base text-white/60 sm:text-lg">
               Paste a JD, get scored candidates back. PurpleHire screens,
               interviews and ranks applicants while you sleep — so you only
               meet the top 5%.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Link
                 href="/signin"
-                className="inline-flex items-center gap-2 rounded-lg bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-400"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-400"
               >
                 Sign in to get started
                 <span aria-hidden>→</span>
               </Link>
               <Link
                 href="/signin"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-5 py-3 font-medium text-white/90 transition hover:bg-white/10"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-5 py-3 font-medium text-white/90 transition hover:bg-white/10"
               >
                 <span aria-hidden>▶</span>
                 Try a sample interview
               </Link>
             </div>
 
-            <p className="mt-8 text-xs text-white/40">
+            <p className="mt-7 text-xs text-white/40">
               Trusted by hiring teams · 12k+ interviews this month
             </p>
           </div>
@@ -199,7 +199,7 @@ export default function Home() {
         </section>
 
         {/* 3-step explainer */}
-        <section className="mx-auto max-w-6xl px-6 pb-24">
+        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-24">
           <div className="grid gap-4 sm:grid-cols-3">
             {[
               {

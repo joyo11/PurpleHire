@@ -100,14 +100,16 @@ export default function CandidateChat({
   return (
     <div className="flex h-[100dvh] flex-col bg-black text-white">
       <header className="border-b border-white/10 px-4 py-3">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <div>
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-white/40">
               Interview · PurpleHire
             </p>
-            <p className="text-sm font-medium">{roleTitle}</p>
+            <p className="truncate text-sm font-medium">{roleTitle}</p>
           </div>
-          <p className="text-xs text-white/50">{candidateName}</p>
+          <p className="shrink-0 truncate text-xs text-white/50">
+            {candidateName}
+          </p>
         </div>
       </header>
 

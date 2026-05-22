@@ -71,11 +71,11 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
       <Head>
         <title>Dashboard · PurpleHire</title>
       </Head>
-      <main className="min-h-screen bg-black px-4 py-8 text-white">
+      <main className="min-h-screen bg-black px-4 py-6 text-white sm:py-8">
         <div className="mx-auto max-w-3xl">
-          <header className="mb-12 flex items-center justify-between">
-            <h1 className="text-2xl font-semibold">PurpleHire</h1>
-            <div className="flex items-center gap-3">
+          <header className="mb-8 flex items-center justify-between gap-3 sm:mb-12">
+            <h1 className="text-xl font-semibold sm:text-2xl">PurpleHire</h1>
+            <div className="flex items-center gap-2 sm:gap-3">
               {user.image && (
                 <img
                   src={user.image}
@@ -83,7 +83,9 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                   className="h-8 w-8 rounded-full"
                 />
               )}
-              <span className="text-sm text-white/70">{user.email}</span>
+              <span className="hidden text-sm text-white/70 sm:inline">
+                {user.email}
+              </span>
               <button
                 onClick={() => signOut({ callbackUrl: "/signin" })}
                 className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/80 transition hover:bg-white/5"
