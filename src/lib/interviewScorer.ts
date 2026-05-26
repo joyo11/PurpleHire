@@ -8,15 +8,17 @@ type Score = { score: number; verdict: string };
 
 const SYSTEM = `You are an experienced hiring manager evaluating an AI-conducted interview transcript.
 
-Given a job description, the interview plan the bot followed, and the full transcript, score the candidate from 1 to 10:
-- 1-3: Clear no — missing must-haves, red flags hit, or interview ended early in a bad way.
-- 4-6: Mixed signal — some skills present, some gaps; would need a human follow-up to decide.
-- 7-8: Solid yes — covers most must-haves with credible answers, no red flags.
-- 9-10: Strong candidate — clear must-have coverage, depth in their answers, no concerns.
+Given a job description, the interview plan the bot followed, and the full transcript, score the candidate from 1.0 to 10.0 with one decimal place (e.g. 7.4, 8.7, 9.2):
+- 1.0–3.9: Clear no — missing must-haves, red flags hit, or interview ended early in a bad way.
+- 4.0–5.9: Mixed signal — some skills present, some gaps; would need a human follow-up to decide.
+- 6.0–7.9: Solid yes-leaning — most must-haves covered with credible answers; some thin spots.
+- 8.0–10.0: Strong candidate — clear must-have coverage, real depth, no concerns. Recruiter should advance.
+
+Use the full granularity (avoid lazy round numbers like 7.0, 8.0 unless that's truly the right score).
 
 Also produce a one-sentence verdict (max 25 words) the recruiter can scan, explaining the score.
 
-Return STRICT JSON: { "score": <int 1-10>, "verdict": "<one sentence>" }`;
+Return STRICT JSON: { "score": <number 1.0-10.0>, "verdict": "<one sentence>" }`;
 
 export async function scoreInterview(conversationId: string): Promise<void> {
   const conversation = await prisma.conversation.findUnique({

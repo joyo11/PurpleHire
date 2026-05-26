@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { signOut } from "next-auth/react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildNextRoundMailto } from "@/lib/inviteEmail";
 import {
   PHTopBar,
   PHAvatar,
@@ -50,17 +51,20 @@ function VerdictCallout({
   score: number | null;
   verdict: string | null;
 }) {
-  const onHundred = score === null ? null : score > 10 ? score : score * 10;
   const tier =
     score === null
       ? "Pending"
-      : (score >= 8 ? "Strong fit" : score >= 5 ? "Mixed signal" : "Likely no");
+      : score >= 8
+        ? "Strong fit"
+        : score >= 6
+          ? "Mixed signal"
+          : "Likely no";
   const tierClass =
     score === null
-      ? "bg-white/8 text-white/60 ring-white/15"
+      ? "bg-white/10 text-white/60 ring-white/15"
       : score >= 8
         ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
-        : score >= 5
+        : score >= 6
           ? "bg-yellow-500/15 text-yellow-300 ring-yellow-500/30"
           : "bg-red-500/15 text-red-300 ring-red-500/30";
 
@@ -75,8 +79,8 @@ function VerdictCallout({
           className={`ml-auto inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${tierClass}`}
         >
           {tier}
-          {onHundred !== null && (
-            <span className="font-mono">{onHundred}/100</span>
+          {score !== null && (
+            <span className="font-mono">{score.toFixed(1)}/10</span>
           )}
         </div>
       </div>
@@ -167,12 +171,33 @@ export default function Transcript({
                 {role.title}
               </div>
             </div>
-            <div className="hidden items-center gap-2 sm:flex">
+            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+              {candidate.score !== null && candidate.score >= 8.0 && (
+                <a
+                  href={buildNextRoundMailto({
+                    candidate: { name: candidate.name, email: candidate.email },
+                    roleTitle: role.title,
+                    recruiterFirstName: user.name?.split(" ")[0] ?? null,
+                  })}
+                  className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 text-[13px] font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="2" y="3.5" width="12" height="9" rx="1.5" />
+                    <path d="M2.5 5l5.5 4 5.5-4" />
+                  </svg>
+                  Send next-round email
+                </a>
+              )}
               <PHButton variant="ghost" size="sm" icon={<Download />}>
                 Export
-              </PHButton>
-              <PHButton variant="ghost" size="sm">
-                Email
               </PHButton>
               <PHButton size="sm" icon={<Check />}>
                 Mark reviewed

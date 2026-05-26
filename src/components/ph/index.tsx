@@ -288,19 +288,18 @@ export function PHButton({
 }
 
 /* ---------- BADGES ---------- *
- * Always displays the score on a 0–100 scale. If a value <= 10 is passed
- * (our scorer's 1–10 output) it is multiplied by 10 for display + tier. */
+ * Displays a 1.0–10.0 score with one decimal place.
+ * Tiers: >=8.0 emerald (passing), >=6.0 yellow (mixed), else red. */
 type PHFitBadgeProps = { score: number; animated?: boolean };
 export function PHFitBadge({ score, animated = false }: PHFitBadgeProps) {
-  const display = score <= 10 ? score * 10 : score;
   const tier =
-    display >= 85
+    score >= 8.0
       ? {
           bg: "bg-emerald-500/15",
           br: "border-emerald-500/30",
           tx: "text-emerald-300",
         }
-      : display >= 70
+      : score >= 6.0
         ? {
             bg: "bg-yellow-500/15",
             br: "border-yellow-500/30",
@@ -315,7 +314,7 @@ export function PHFitBadge({ score, animated = false }: PHFitBadgeProps) {
     <span
       className={`inline-flex h-7 min-w-[2.5rem] items-center justify-center rounded-full border px-2.5 font-mono text-[13px] font-medium tabular-nums ${tier.bg} ${tier.br} ${tier.tx} ${animated ? "animate-fm-fade-in" : ""}`}
     >
-      {display}
+      {score.toFixed(1)}
     </span>
   );
 }
@@ -478,20 +477,20 @@ export function PHMockPanel() {
         <PHCandidateRow
           letter="M"
           name="Maya R."
-          score={94}
+          score={9.4}
           tags={["React", "TypeScript", "Design systems"]}
         />
         <PHCandidateRow
           letter="D"
           name="Daniel K."
-          score={91}
+          score={9.1}
           tags={["React", "Node", "GraphQL"]}
           shimmer
         />
         <PHCandidateRow
           letter="P"
           name="Priya S."
-          score={87}
+          score={8.7}
           tags={["React Native", "Performance"]}
         />
       </div>

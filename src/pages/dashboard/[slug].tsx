@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth/next";
 import { signOut } from "next-auth/react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildNextRoundMailto } from "@/lib/inviteEmail";
 import {
   PHTopBar,
   PHButton,
@@ -44,6 +45,25 @@ type Props = {
   baseUrl: string;
   candidates: CandidateRow[];
 };
+
+const PASS_THRESHOLD = 8.0;
+
+function MailIcon({ className = "h-3 w-3" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="2" y="3.5" width="12" height="9" rx="1.5" />
+      <path d="M2.5 5l5.5 4 5.5-4" />
+    </svg>
+  );
+}
 
 type FilterKey = "all" | "completed" | "in_progress";
 type SortKey = "score" | "recency";
@@ -262,10 +282,10 @@ export default function RoleDetail({
               <section className="mt-5 hidden overflow-hidden rounded-3xl border border-white/10 lg:block">
                 <div className="grid grid-cols-12 gap-4 border-b border-white/10 bg-white/[0.02] px-6 py-3 text-[11px] uppercase tracking-[0.14em] text-white/40">
                   <div className="col-span-1">#</div>
-                  <div className="col-span-4">Candidate</div>
+                  <div className="col-span-3">Candidate</div>
                   <div className="col-span-1">Score</div>
                   <div className="col-span-5">AI verdict</div>
-                  <div className="col-span-1 text-right">·</div>
+                  <div className="col-span-2 text-right">Actions</div>
                 </div>
                 {filtered.map((c, i) => (
                   <div
@@ -276,7 +296,7 @@ export default function RoleDetail({
                     <div className="col-span-1 font-mono text-[12px] text-white/35">
                       {String(i + 1).padStart(2, "0")}
                     </div>
-                    <div className="col-span-4 flex items-center gap-3">
+                    <div className="col-span-3 flex items-center gap-3">
                       <PHAvatar letter={firstInitial(c.name)} size="md" />
                       <div className="min-w-0">
                         <div className="truncate text-[14.5px] font-medium text-white">
@@ -310,7 +330,21 @@ export default function RoleDetail({
                         </span>
                       )}
                     </div>
-                    <div className="col-span-1 flex justify-end">
+                    <div className="col-span-2 flex justify-end gap-2">
+                      {c.score !== null && c.score >= PASS_THRESHOLD && (
+                        <a
+                          href={buildNextRoundMailto({
+                            candidate: { name: c.name, email: c.email },
+                            roleTitle: role.title,
+                            recruiterFirstName: user.name?.split(" ")[0] ?? null,
+                          })}
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[12px] text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                          title="Send next-round email"
+                        >
+                          <MailIcon />
+                          Email
+                        </a>
+                      )}
                       <Link
                         href={`/dashboard/${role.slug}/${c.id}`}
                         className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1.5 text-[12px] text-white/70 transition-colors hover:bg-white/5 hover:text-white"
@@ -359,6 +393,19 @@ export default function RoleDetail({
                       <p className="mt-2 text-[12px] leading-relaxed text-white/55 line-clamp-2">
                         {c.verdict}
                       </p>
+                    )}
+                    {c.score !== null && c.score >= PASS_THRESHOLD && (
+                      <a
+                        href={buildNextRoundMailto({
+                          candidate: { name: c.name, email: c.email },
+                          roleTitle: role.title,
+                          recruiterFirstName: user.name?.split(" ")[0] ?? null,
+                        })}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[12px] text-emerald-300"
+                      >
+                        <MailIcon />
+                        Send next-round email
+                      </a>
                     )}
                   </li>
                 ))}
