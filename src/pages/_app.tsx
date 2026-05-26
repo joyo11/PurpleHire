@@ -2,7 +2,7 @@
 import type { AppType } from "next/app";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
-import { Fredoka } from "next/font/google";
+import { Fredoka, JetBrains_Mono } from "next/font/google";
 import "@/styles/globals.css";
 
 const fredoka = Fredoka({
@@ -11,13 +11,19 @@ const fredoka = Fredoka({
   variable: "--font-fredoka",
 });
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-jetbrains-mono",
+});
+
 const MyApp: AppType<{ session: Session | null }> = ({
   Component,
   pageProps: { session, ...pageProps },
 }) => {
   return (
     <SessionProvider session={session}>
-      <div className={`${fredoka.variable} min-h-screen bg-black font-sans`}>
+      <div className={`${fredoka.variable} ${jetbrainsMono.variable} min-h-screen bg-black font-sans`}>
         <Component {...pageProps} />
       </div>
     </SessionProvider>

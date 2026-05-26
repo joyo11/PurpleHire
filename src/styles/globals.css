@@ -10,6 +10,38 @@
   --surface-2: #1a1a1a;
 }
 
+/* PurpleHire design system utility classes */
+.ph-grad-text {
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 50%, #7e22ce 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+          color: transparent;
+}
+.ph-grad-btn-bg {
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 60%, #7e22ce 100%);
+}
+.ph-shimmer-bg {
+  background: linear-gradient(90deg, transparent 0%, rgba(168,85,247,0.18) 40%, rgba(168,85,247,0.32) 50%, rgba(168,85,247,0.18) 60%, transparent 100%);
+  background-size: 200% 100%;
+}
+.ph-radial-purple {
+  background:
+    radial-gradient(60% 80% at 70% 30%, rgba(147,51,234,0.22), rgba(147,51,234,0) 60%),
+    radial-gradient(80% 60% at 20% 90%, rgba(147,51,234,0.12), rgba(147,51,234,0) 70%),
+    #000;
+}
+.ph-grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.ph-mobile-frame {
+  box-shadow: 0 0 0 8px #1a1a1a, 0 0 0 9px #2a2a2a, 0 30px 80px -20px rgba(0,0,0,.6);
+  border-radius: 36px;
+}
+
 /* Force dark theme */
 html, body {
   @apply bg-black text-white;

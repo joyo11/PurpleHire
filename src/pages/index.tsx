@@ -1,43 +1,32 @@
 import Head from "next/head";
 import Link from "next/link";
+import {
+  PHLogo,
+  PHButton,
+  PHEyebrow,
+  PHAvatar,
+  PHMockPanel,
+  ArrowRight,
+  ChevronRight,
+} from "@/components/ph";
 
-type MockCandidate = {
-  initial: string;
-  name: string;
-  meta: string;
-  tags: string[];
-  fit: number;
-};
-
-const MOCK_CANDIDATES: MockCandidate[] = [
+const STEPS = [
   {
-    initial: "M",
-    name: "Maya R.",
-    meta: "ex-Stripe · 4y",
-    tags: ["React", "TS", "Systems"],
-    fit: 94,
+    n: "01",
+    t: "Paste the JD",
+    d: "We parse the role, must-haves, and nice-to-haves automatically.",
   },
   {
-    initial: "D",
-    name: "Daniel K.",
-    meta: "ex-Linear · 5y",
-    tags: ["React", "Perf"],
-    fit: 91,
+    n: "02",
+    t: "We run interviews",
+    d: "PurpleHire chats with every applicant — empathetic, on-brief, never robotic.",
   },
   {
-    initial: "P",
-    name: "Priya S.",
-    meta: "ex-Vercel · 4y",
-    tags: ["Next.js", "DX"],
-    fit: 87,
+    n: "03",
+    t: "Pick the top 5%",
+    d: "Sorted by fit score with reasoning. Skip the bottom 95% with confidence.",
   },
 ];
-
-function fitColor(fit: number) {
-  if (fit >= 90) return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30";
-  if (fit >= 75) return "bg-yellow-500/15 text-yellow-300 border-yellow-500/30";
-  return "bg-red-500/15 text-red-300 border-red-500/30";
-}
 
 export default function Home() {
   return (
@@ -46,194 +35,145 @@ export default function Home() {
         <title>PurpleHire — AI interviews for any job description</title>
         <meta
           name="description"
-          content="Paste a JD. Share a link. Get a scored shortlist of candidates back."
+          content="Paste the JD. PurpleHire interviews every applicant, scores them honestly, and hands you the top 5%."
         />
         <link rel="icon" href="/PurpleHire.png" />
       </Head>
 
-      <main className="min-h-screen bg-black text-white">
-        {/* Nav */}
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-500 text-sm font-bold text-white">
-              P
-            </span>
-            <span className="text-base font-semibold">PurpleHire</span>
-          </Link>
-          <div className="flex items-center gap-1 text-sm sm:gap-2">
+      <main className="ph-radial-purple relative min-h-screen text-white">
+        {/* NAV */}
+        <header className="mx-auto flex max-w-7xl items-center justify-between px-5 pt-5 sm:px-8 sm:pt-6 lg:px-12">
+          <PHLogo size="md" />
+          <nav className="flex items-center gap-2 text-[14px] text-white/70 sm:gap-6">
             <Link
               href="/signin"
-              className="hidden rounded-md px-3 py-1.5 text-white/70 transition hover:text-white sm:inline-block"
+              className="hidden text-white/85 transition-colors hover:text-white sm:inline-block"
             >
               Sign in
             </Link>
-            <Link
-              href="/signin"
-              className="rounded-md bg-white px-3 py-1.5 font-medium text-black transition hover:bg-white/90"
-            >
-              Get started
+            <Link href="/signin">
+              <PHButton size="sm" iconRight={<ChevronRight />}>
+                Get started
+              </PHButton>
             </Link>
-          </div>
-        </nav>
+          </nav>
+        </header>
 
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 pb-16 sm:px-6 sm:pt-12 sm:pb-20 lg:grid-cols-2 lg:gap-16 lg:pt-20">
-          <div className="flex flex-col justify-center">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-500 opacity-60" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-purple-500" />
-              </span>
-              AI recruiter · live
+        {/* HERO */}
+        <section className="mx-auto grid max-w-7xl gap-12 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-12 lg:gap-12 lg:px-12 lg:pb-24 lg:pt-20">
+          <div className="flex flex-col justify-center lg:col-span-7">
+            <div className="animate-fm-fade-up">
+              <PHEyebrow live>AI recruiter · live</PHEyebrow>
             </div>
 
-            <h1 className="mb-5 text-[2.5rem] font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-              AI interviews for{" "}
-              <span className="bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text italic text-transparent">
-                any
-              </span>{" "}
+            <h1
+              className="mt-6 animate-fm-fade-up text-[44px] font-medium leading-[1.02] tracking-[-0.025em] sm:mt-7 sm:text-[64px] lg:text-[88px] lg:leading-[0.98] lg:tracking-[-0.03em]"
+              style={{ animationDelay: "60ms" }}
+            >
+              AI interviews
+              <br className="hidden sm:block" />{" "}
+              for <span className="ph-grad-text">any</span>{" "}
+              <br className="hidden sm:block" />
               job description.
             </h1>
 
-            <p className="mb-7 max-w-lg text-base text-white/60 sm:text-lg">
-              Paste a JD, get scored candidates back. PurpleHire screens,
-              interviews and ranks applicants while you sleep — so you only
-              meet the top 5%.
+            <p
+              className="mt-5 max-w-[540px] animate-fm-fade-up text-[15px] leading-relaxed text-white/65 sm:mt-7 sm:text-[18px]"
+              style={{ animationDelay: "120ms" }}
+            >
+              Paste the JD. PurpleHire interviews every applicant, scores them
+              honestly, and hands you the top 5% — usually before lunch.
             </p>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link
-                href="/signin"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-purple-500 px-5 py-3 font-medium text-white transition hover:bg-purple-400"
-              >
-                Sign in to get started
-                <span aria-hidden>→</span>
+            <div
+              className="mt-7 flex flex-col gap-2 animate-fm-fade-up sm:mt-9 sm:flex-row sm:items-center sm:gap-3"
+              style={{ animationDelay: "180ms" }}
+            >
+              <Link href="/signin">
+                <PHButton size="lg" iconRight={<ArrowRight />}>
+                  Sign in to get started
+                </PHButton>
               </Link>
-              <Link
-                href="/signin"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-5 py-3 font-medium text-white/90 transition hover:bg-white/10"
-              >
-                <span aria-hidden>▶</span>
-                Try a sample interview
+              <Link href="/signin">
+                <PHButton size="lg" variant="ghost">
+                  Try a sample interview
+                </PHButton>
               </Link>
             </div>
 
-            <p className="mt-7 text-xs text-white/40">
-              Trusted by hiring teams · 12k+ interviews this month
-            </p>
+            <div
+              className="mt-8 flex items-center gap-4 animate-fm-fade-up text-[12px] text-white/45 sm:mt-10 sm:gap-6 sm:text-[13px]"
+              style={{ animationDelay: "240ms" }}
+            >
+              <div className="flex -space-x-2">
+                <PHAvatar letter="M" size="sm" />
+                <PHAvatar letter="D" size="sm" />
+                <PHAvatar letter="P" size="sm" />
+                <PHAvatar letter="J" size="sm" />
+              </div>
+              <span>
+                4,200+ interviews this week · avg. 11 min/candidate
+              </span>
+            </div>
           </div>
 
-          {/* Mock candidate panel */}
-          <div className="flex items-center">
-            <div className="w-full rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 shadow-2xl">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-white/40">
-                    Job description
-                  </p>
-                  <p className="text-sm font-medium">
-                    Senior React Engineer · Series B fintech
+          <div className="flex items-center lg:col-span-5">
+            <div
+              className="w-full animate-fm-fade-up"
+              style={{ animationDelay: "300ms" }}
+            >
+              <PHMockPanel />
+            </div>
+          </div>
+        </section>
+
+        {/* 3-STEP EXPLAINER */}
+        <section className="border-y border-white/10 bg-black/40 px-5 py-14 sm:px-8 sm:py-20 lg:px-12">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-10 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-end sm:gap-4 lg:mb-12">
+              <div>
+                <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
+                  HOW IT WORKS
+                </div>
+                <h2 className="mt-2 text-[26px] font-medium tracking-tight sm:text-[36px]">
+                  Three steps. About ten minutes.
+                </h2>
+              </div>
+              <div className="text-[13px] text-white/45 sm:text-[14px]">
+                No sourcing. No phone tag. No &ldquo;are you still interested?&rdquo;
+              </div>
+            </div>
+            <div className="grid gap-3 sm:gap-5 lg:grid-cols-3">
+              {STEPS.map((s) => (
+                <div
+                  key={s.n}
+                  className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/15 hover:bg-white/[0.04] sm:p-7"
+                >
+                  <div className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-gradient-to-b from-purple-400 to-purple-600 transition-transform duration-300 group-hover:scale-y-100" />
+                  <div className="font-mono text-[13px] text-purple-400">
+                    {s.n}
+                  </div>
+                  <div className="mt-4 text-[20px] font-medium tracking-tight sm:mt-5 sm:text-[22px]">
+                    {s.t}
+                  </div>
+                  <p className="mt-2 text-[14px] leading-relaxed text-white/55">
+                    {s.d}
                   </p>
                 </div>
-                <span className="rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
-                  Parsed
-                </span>
-              </div>
-
-              <div className="mb-3 flex items-center justify-between border-t border-white/5 pt-3">
-                <p className="text-xs uppercase tracking-wide text-white/40">
-                  Top candidates
-                </p>
-                <p className="text-xs text-white/40">47 interviewed</p>
-              </div>
-
-              <ul className="space-y-2">
-                {MOCK_CANDIDATES.map((c) => (
-                  <li
-                    key={c.name}
-                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-black/40 p-3"
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">
-                      {c.initial}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium">
-                          {c.name}
-                        </p>
-                        <p className="truncate text-xs text-white/40">
-                          {c.meta}
-                        </p>
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {c.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] text-white/70"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span
-                        className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${fitColor(c.fit)}`}
-                      >
-                        {c.fit}
-                      </span>
-                      <p className="mt-0.5 text-[10px] uppercase tracking-wide text-white/40">
-                        Fit
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-4 flex items-center gap-2 border-t border-white/5 pt-3 text-xs text-white/50">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                3 interviews in progress · last completed 2 min ago
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* 3-step explainer */}
-        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-24">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                step: "01",
-                title: "Paste the JD",
-                body: "Role, skills, must-haves — we extract them automatically.",
-              },
-              {
-                step: "02",
-                title: "We run interviews",
-                body: "Voice + chat, on candidates' time. No scheduling.",
-              },
-              {
-                step: "03",
-                title: "Pick the top 5%",
-                body: "Ranked shortlist with transcripts and signal.",
-              },
-            ].map((s) => (
-              <div
-                key={s.step}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-              >
-                <p className="mb-3 text-xs font-medium tracking-wider text-white/40">
-                  STEP {s.step}
-                </p>
-                <p className="mb-2 text-lg font-semibold">{s.title}</p>
-                <p className="text-sm text-white/60">{s.body}</p>
-              </div>
-            ))}
+        {/* FOOTER */}
+        <footer className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-3 px-5 py-7 text-[12px] text-white/45 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-8 sm:text-[13px] lg:px-12">
+          <PHLogo size="sm" />
+          <div className="flex items-center gap-5 sm:gap-6">
+            <a className="hover:text-white/70">Privacy</a>
+            <a className="hover:text-white/70">Terms</a>
+            <a className="hover:text-white/70">Contact</a>
+            <span className="font-mono text-white/30">© 2026 PurpleHire</span>
           </div>
-        </section>
-
-        <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-white/40">
-          PurpleHire · AI interviews for any job description
         </footer>
       </main>
     </>
