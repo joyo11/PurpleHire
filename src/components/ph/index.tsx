@@ -288,19 +288,19 @@ export function PHButton({
 }
 
 /* ---------- BADGES ---------- *
- * Accepts either a 1–10 score (our scorer output) or a 0–100 score
- * (the design mock scale). Auto-detects by magnitude. */
+ * Always displays the score on a 0–100 scale. If a value <= 10 is passed
+ * (our scorer's 1–10 output) it is multiplied by 10 for display + tier. */
 type PHFitBadgeProps = { score: number; animated?: boolean };
 export function PHFitBadge({ score, animated = false }: PHFitBadgeProps) {
-  const onHundred = score > 10 ? score : score * 10;
+  const display = score <= 10 ? score * 10 : score;
   const tier =
-    onHundred >= 85
+    display >= 85
       ? {
           bg: "bg-emerald-500/15",
           br: "border-emerald-500/30",
           tx: "text-emerald-300",
         }
-      : onHundred >= 70
+      : display >= 70
         ? {
             bg: "bg-yellow-500/15",
             br: "border-yellow-500/30",
@@ -315,7 +315,7 @@ export function PHFitBadge({ score, animated = false }: PHFitBadgeProps) {
     <span
       className={`inline-flex h-7 min-w-[2.5rem] items-center justify-center rounded-full border px-2.5 font-mono text-[13px] font-medium tabular-nums ${tier.bg} ${tier.br} ${tier.tx} ${animated ? "animate-fm-fade-in" : ""}`}
     >
-      {score}
+      {display}
     </span>
   );
 }

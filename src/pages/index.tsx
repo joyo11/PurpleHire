@@ -4,7 +4,6 @@ import {
   PHLogo,
   PHButton,
   PHEyebrow,
-  PHAvatar,
   PHMockPanel,
   ArrowRight,
   ChevronRight,
@@ -101,20 +100,6 @@ export default function Home() {
               </Link>
             </div>
 
-            <div
-              className="mt-8 flex items-center gap-4 animate-fm-fade-up text-[12px] text-white/45 sm:mt-10 sm:gap-6 sm:text-[13px]"
-              style={{ animationDelay: "240ms" }}
-            >
-              <div className="flex -space-x-2">
-                <PHAvatar letter="M" size="sm" />
-                <PHAvatar letter="D" size="sm" />
-                <PHAvatar letter="P" size="sm" />
-                <PHAvatar letter="J" size="sm" />
-              </div>
-              <span>
-                4,200+ interviews this week · avg. 11 min/candidate
-              </span>
-            </div>
           </div>
 
           <div className="flex items-center lg:col-span-5">
