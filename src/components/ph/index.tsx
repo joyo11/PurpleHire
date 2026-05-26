@@ -4,7 +4,12 @@
  * Tailwind classes only. CSS animations map to Framer Motion names
  * so we can swap to <motion.X> later if needed.
  */
-import type { ReactNode, SVGProps } from "react";
+import type {
+  ReactNode,
+  SVGProps,
+  InputHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 type SvgIconProps = SVGProps<SVGSVGElement>;
 
@@ -67,6 +72,106 @@ export const Copy = (p: SvgIconProps) => (
   >
     <rect x="5" y="5" width="9" height="9" rx="2" />
     <path d="M3 11V4a1 1 0 0 1 1-1h7" />
+  </svg>
+);
+
+export const Sparkle = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-3.5 w-3.5"}
+    fill="currentColor"
+    {...p}
+  >
+    <path d="M8 1l1.4 4.6L14 7l-4.6 1.4L8 13l-1.4-4.6L2 7l4.6-1.4L8 1z" />
+  </svg>
+);
+
+export const Send = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-4 w-4"}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...p}
+  >
+    <path d="M2 8l12-6-3.5 14-3-5-5.5-3z" />
+  </svg>
+);
+
+export const Search = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-4 w-4"}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...p}
+  >
+    <circle cx="7" cy="7" r="4.5" />
+    <path d="M11 11l3 3" />
+  </svg>
+);
+
+export const ChevronDown = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-3.5 w-3.5"}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...p}
+  >
+    <path d="M4 6l4 4 4-4" />
+  </svg>
+);
+
+export const Dots = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-4 w-4"}
+    fill="currentColor"
+    {...p}
+  >
+    <circle cx="3" cy="8" r="1.4" />
+    <circle cx="8" cy="8" r="1.4" />
+    <circle cx="13" cy="8" r="1.4" />
+  </svg>
+);
+
+export const Download = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-3.5 w-3.5"}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...p}
+  >
+    <path d="M8 2v8M4 7l4 4 4-4M3 14h10" />
+  </svg>
+);
+
+export const ChevronLeft = (p: SvgIconProps) => (
+  <svg
+    viewBox="0 0 16 16"
+    className={p.className ?? "h-3.5 w-3.5"}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...p}
+  >
+    <path d="M10 4l-4 4 4 4" />
   </svg>
 );
 
@@ -182,17 +287,20 @@ export function PHButton({
   );
 }
 
-/* ---------- BADGES ---------- */
+/* ---------- BADGES ---------- *
+ * Accepts either a 1–10 score (our scorer output) or a 0–100 score
+ * (the design mock scale). Auto-detects by magnitude. */
 type PHFitBadgeProps = { score: number; animated?: boolean };
 export function PHFitBadge({ score, animated = false }: PHFitBadgeProps) {
+  const onHundred = score > 10 ? score : score * 10;
   const tier =
-    score >= 85
+    onHundred >= 85
       ? {
           bg: "bg-emerald-500/15",
           br: "border-emerald-500/30",
           tx: "text-emerald-300",
         }
-      : score >= 70
+      : onHundred >= 70
         ? {
             bg: "bg-yellow-500/15",
             br: "border-yellow-500/30",
@@ -399,5 +507,260 @@ export function PHMockPanel() {
         <div className="text-white/35">Last completed 2 min ago</div>
       </div>
     </div>
+  );
+}
+
+/* ---------- INPUT ---------- */
+type PHInputProps = {
+  label?: ReactNode;
+  helper?: ReactNode;
+  state?: "default" | "focus" | "error" | "disabled";
+  suffix?: ReactNode;
+} & InputHTMLAttributes<HTMLInputElement>;
+export function PHInput({
+  label,
+  helper,
+  state = "default",
+  suffix,
+  className = "",
+  ...rest
+}: PHInputProps) {
+  const ring = {
+    default:
+      "border-white/10 focus-within:border-purple-500/40 focus-within:shadow-glow-purple-sm",
+    focus: "border-purple-500/40 shadow-glow-purple-sm",
+    error: "border-red-500/40 shadow-[0_0_0_1px_rgba(239,68,68,0.35)]",
+    disabled: "opacity-50 pointer-events-none",
+  }[state];
+  return (
+    <label className="block w-full">
+      {label && (
+        <span className="mb-1.5 block text-[13px] font-medium text-white/70">
+          {label}
+        </span>
+      )}
+      <div
+        className={`flex h-12 items-center rounded-2xl border bg-white/[0.02] px-4 transition-all ${ring}`}
+      >
+        <input
+          {...rest}
+          className={`w-full bg-transparent text-[15px] text-white placeholder:text-white/35 focus:outline-none ${className}`}
+        />
+        {suffix && (
+          <span className="ml-2 text-[12px] text-white/40">{suffix}</span>
+        )}
+      </div>
+      {helper && (
+        <span className="mt-1.5 block text-[12px] text-white/45">{helper}</span>
+      )}
+    </label>
+  );
+}
+
+/* ---------- TEXTAREA ---------- */
+type PHTextareaProps = {
+  label?: ReactNode;
+  state?: "default" | "focus" | "error";
+  count?: number;
+  countMax?: number;
+} & TextareaHTMLAttributes<HTMLTextAreaElement>;
+export function PHTextarea({
+  label,
+  state = "default",
+  count,
+  countMax = 8000,
+  rows = 8,
+  className = "",
+  ...rest
+}: PHTextareaProps) {
+  const ring = {
+    default:
+      "border-white/10 focus-within:border-purple-500/40 focus-within:shadow-glow-purple-sm",
+    focus: "border-purple-500/40 shadow-glow-purple-sm",
+    error: "border-red-500/40",
+  }[state];
+  return (
+    <label className="block w-full">
+      {label && (
+        <span className="mb-1.5 block text-[13px] font-medium text-white/70">
+          {label}
+        </span>
+      )}
+      <div
+        className={`relative rounded-2xl border bg-white/[0.02] p-4 transition-all ${ring}`}
+      >
+        <textarea
+          rows={rows}
+          {...rest}
+          className={`block w-full resize-none bg-transparent text-[14px] leading-relaxed text-white/95 placeholder:text-white/30 focus:outline-none ${className}`}
+        />
+        {count != null && (
+          <div className="pointer-events-none absolute bottom-3 right-4 font-mono text-[11px] text-white/35">
+            {count.toLocaleString()} / {countMax.toLocaleString()}
+          </div>
+        )}
+      </div>
+    </label>
+  );
+}
+
+/* ---------- PILL ---------- */
+type PHPillProps = {
+  children: ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+};
+export function PHPill({ children, active = false, onClick }: PHPillProps) {
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      className={[
+        "h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors",
+        active
+          ? "bg-white text-black"
+          : "text-white/70 hover:bg-white/5 hover:text-white",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ---------- CARD ---------- */
+type PHCardProps = { children: ReactNode; className?: string };
+export function PHCard({ children, className = "" }: PHCardProps) {
+  return (
+    <div
+      className={`rounded-3xl border border-white/10 bg-white/[0.02] p-6 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ---------- MESSAGE ---------- */
+type PHMessageProps = {
+  from?: "bot" | "candidate";
+  children: ReactNode;
+  variant?: "bubble" | "flat";
+};
+export function PHMessage({
+  from = "bot",
+  children,
+  variant = "bubble",
+}: PHMessageProps) {
+  if (variant === "flat") {
+    return (
+      <div className="flex items-start gap-3 px-1">
+        {from === "bot" ? (
+          <PHAvatar letter="P" brand size="sm" />
+        ) : (
+          <div className="h-7 w-7 shrink-0 rounded-full bg-white/10 text-center text-[12px] font-medium leading-7 text-white/80">
+            Y
+          </div>
+        )}
+        <div className="flex-1 pt-0.5">
+          <div className="mb-0.5 text-[12px] font-medium text-white/55">
+            {from === "bot" ? "PurpleHire" : "You"}
+          </div>
+          <div className="text-[14.5px] leading-relaxed text-white/95">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (from === "bot") {
+    return (
+      <div className="flex items-end gap-2.5">
+        <PHAvatar letter="P" brand size="sm" />
+        <div className="max-w-[78%] rounded-3xl rounded-bl-md border border-white/10 bg-white/[0.05] px-4 py-2.5 text-[14.5px] leading-relaxed text-white/95">
+          {children}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[78%] rounded-3xl rounded-br-md bg-white px-4 py-2.5 text-[14.5px] leading-relaxed text-black">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- TYPING DOTS ---------- */
+export function PHTypingDots() {
+  return (
+    <div className="flex items-end gap-2.5">
+      <PHAvatar letter="P" brand size="sm" />
+      <div className="flex items-center gap-1 rounded-3xl rounded-bl-md border border-white/10 bg-white/[0.05] px-4 py-3">
+        <span
+          className="block h-1.5 w-1.5 animate-fm-typing-dots rounded-full bg-white/60"
+          style={{ animationDelay: "0ms" }}
+        />
+        <span
+          className="block h-1.5 w-1.5 animate-fm-typing-dots rounded-full bg-white/60"
+          style={{ animationDelay: "120ms" }}
+        />
+        <span
+          className="block h-1.5 w-1.5 animate-fm-typing-dots rounded-full bg-white/60"
+          style={{ animationDelay: "240ms" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ---------- TOP BAR ---------- */
+type PHTopBarProps = {
+  user?: {
+    email?: string | null;
+    image?: string | null;
+    letter?: string;
+  } | null;
+  onSignOut?: () => void;
+};
+export function PHTopBar({ user, onSignOut }: PHTopBarProps) {
+  return (
+    <header className="flex h-16 items-center justify-between border-b border-white/10 px-5 sm:px-8">
+      <PHLogo size="md" />
+      {user ? (
+        <div className="flex items-center gap-3 sm:gap-4">
+          {user.email && (
+            <div className="hidden text-[13px] text-white/55 sm:block">
+              {user.email}
+            </div>
+          )}
+          {user.image ? (
+            <img
+              src={user.image}
+              alt=""
+              className="h-8 w-8 rounded-full ring-1 ring-white/15"
+            />
+          ) : (
+            <PHAvatar letter={user.letter ?? "A"} size="sm" />
+          )}
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="text-[13px] text-white/55 transition-colors hover:text-white"
+            >
+              Sign out
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <a className="text-[14px] text-white/75 transition-colors hover:text-white">
+            Sign in
+          </a>
+          <PHButton size="sm" iconRight={<ChevronRight />}>
+            Get started
+          </PHButton>
+        </div>
+      )}
+    </header>
   );
 }

@@ -6,6 +6,18 @@ import { getServerSession } from "next-auth/next";
 import { signOut } from "next-auth/react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  PHTopBar,
+  PHButton,
+  PHInput,
+  PHTextarea,
+  PHPill,
+  ArrowRight,
+  ChevronRight,
+  Sparkle,
+  Copy,
+  Check,
+} from "@/components/ph";
 
 type RoleSummary = {
   id: string;
@@ -22,6 +34,13 @@ type Props = {
   initialRoles: RoleSummary[];
 };
 
+function formatShortDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "2-digit",
+  });
+}
+
 export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
   const [roles, setRoles] = useState<RoleSummary[]>(initialRoles);
   const [title, setTitle] = useState("");
@@ -30,7 +49,21 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  const firstName = user.name?.split(" ")[0];
   const interviewLink = (slug: string) => `${baseUrl}/i/${slug}`;
+
+  const liveCount = roles.reduce(
+    (acc, r) => acc + (r.candidateCount - r.completedCount),
+    0,
+  );
+  const doneCount = roles.reduce((acc, r) => acc + r.completedCount, 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,131 +104,330 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
       <Head>
         <title>Dashboard · PurpleHire</title>
       </Head>
-      <main className="min-h-screen bg-black px-4 py-6 text-white sm:py-8">
-        <div className="mx-auto max-w-3xl">
-          <header className="mb-8 flex items-center justify-between gap-3 sm:mb-12">
-            <h1 className="text-xl font-semibold sm:text-2xl">PurpleHire</h1>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {user.image && (
-                <img
-                  src={user.image}
-                  alt=""
-                  className="h-8 w-8 rounded-full"
-                />
-              )}
-              <span className="hidden text-sm text-white/70 sm:inline">
-                {user.email}
-              </span>
-              <button
-                onClick={() => signOut({ callbackUrl: "/signin" })}
-                className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/80 transition hover:bg-white/5"
-              >
-                Sign out
-              </button>
-            </div>
-          </header>
+      <main className="ph-radial-purple relative min-h-screen text-white">
+        <PHTopBar
+          user={{
+            email: user.email,
+            image: user.image,
+            letter: firstName?.[0]?.toUpperCase() ?? "A",
+          }}
+          onSignOut={() => signOut({ callbackUrl: "/signin" })}
+        />
 
-          <section className="mb-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-            <h2 className="mb-1 text-lg font-medium">Create an interview</h2>
-            <p className="mb-5 text-sm text-white/60">
-              Paste a job description and we'll generate a shareable link your
-              candidates can take an AI interview through.
-            </p>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm text-white/70">
-                  Role title
-                </label>
-                <input
+        <section className="mx-auto max-w-[1180px] px-5 py-8 sm:px-8 sm:py-10 lg:px-12">
+          <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-end sm:gap-4">
+            <div>
+              <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
+                DASHBOARD
+              </div>
+              <h1 className="mt-1.5 text-[26px] font-medium tracking-tight sm:mt-2 sm:text-[34px]">
+                {greeting}
+                {firstName ? `, ${firstName}` : ""}.
+              </h1>
+            </div>
+            <div className="text-[12px] text-white/45 sm:text-[13px]">
+              {roles.length === 0
+                ? "0 interviews live"
+                : `${roles.length} role${roles.length === 1 ? "" : "s"} · ${doneCount} completed · ${liveCount} live`}
+            </div>
+          </div>
+
+          {/* CREATE INTERVIEW */}
+          <form
+            onSubmit={handleSubmit}
+            className="mt-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.03] to-white/[0.005] p-5 sm:p-7"
+          >
+            <div className="mb-5 flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-purple-500/15 p-1.5 text-purple-300">
+                <Sparkle className="h-full w-full" />
+              </div>
+              <h2 className="text-[16px] font-medium tracking-tight sm:text-[18px]">
+                Create an interview
+              </h2>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-12">
+              <div className="lg:col-span-4">
+                <PHInput
+                  label="Role title"
+                  placeholder="e.g. Senior React Engineer"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  placeholder="e.g. Senior iOS Engineer"
-                  className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white placeholder-white/30 focus:border-white/40 focus:outline-none"
                 />
+                <p className="mt-4 text-[12px] leading-relaxed text-white/45">
+                  We&apos;ll parse the JD into must-haves, nice-to-haves, and a
+                  calibrated interview plan automatically.
+                </p>
               </div>
-              <div>
-                <label className="mb-1 block text-sm text-white/70">
-                  Job description
-                </label>
-                <textarea
+
+              <div className="lg:col-span-8">
+                <PHTextarea
+                  label="Job description"
+                  placeholder="Paste the full JD. Markdown is fine. We'll figure out the rest."
                   value={jdText}
                   onChange={(e) => setJdText(e.target.value)}
+                  rows={8}
+                  count={jdText.length}
                   required
-                  rows={10}
-                  placeholder="Paste the full JD here — responsibilities, requirements, nice-to-haves, etc."
-                  className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 font-mono text-sm text-white placeholder-white/30 focus:border-white/40 focus:outline-none"
+                  state={error ? "error" : "default"}
                 />
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[12px] text-white/40">
+                    We never share your JD. Used only to brief your interview.
+                  </p>
+                  {submitting ? (
+                    <button
+                      disabled
+                      className="ph-grad-btn-bg relative flex h-11 items-center gap-2 overflow-hidden rounded-full px-5 text-[14.5px] font-medium text-white shadow-glow-purple"
+                    >
+                      <span className="ph-shimmer-bg pointer-events-none absolute inset-0 rounded-full opacity-60 animate-fm-shimmer" />
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="9"
+                          stroke="currentColor"
+                          strokeOpacity=".25"
+                          strokeWidth="2.5"
+                        />
+                        <path
+                          d="M21 12a9 9 0 0 0-9-9"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      Analyzing JD…
+                    </button>
+                  ) : (
+                    <PHButton
+                      type="submit"
+                      iconRight={<ArrowRight />}
+                    >
+                      Create interview
+                    </PHButton>
+                  )}
+                </div>
+                {error && (
+                  <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-300">
+                    {error}
+                  </p>
+                )}
               </div>
-              {error && (
-                <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                  {error}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-white px-5 py-2.5 font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? "Analyzing JD…" : "Create interview"}
-              </button>
-            </form>
-          </section>
+            </div>
+          </form>
 
-          <section>
-            <h2 className="mb-4 text-lg font-medium">Your interviews</h2>
+          {/* YOUR INTERVIEWS */}
+          <section className="mt-10 sm:mt-12">
+            <div className="mb-4 flex items-center justify-between sm:mb-5">
+              <h2 className="text-[16px] font-medium tracking-tight sm:text-[18px]">
+                Your interviews
+              </h2>
+              <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.02] px-1 py-1 sm:flex">
+                <PHPill active>All</PHPill>
+                <PHPill>Active</PHPill>
+                <PHPill>Archived</PHPill>
+              </div>
+            </div>
+
             {roles.length === 0 ? (
-              <p className="text-sm text-white/50">No interviews yet.</p>
+              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-10 text-center sm:p-12">
+                <div className="mx-auto mb-5 grid h-16 w-16 place-items-center sm:h-20 sm:w-20">
+                  <svg viewBox="0 0 80 80" className="h-full w-full" fill="none">
+                    <rect
+                      x="10"
+                      y="14"
+                      width="60"
+                      height="52"
+                      rx="10"
+                      stroke="url(#empty-grad)"
+                      strokeWidth="1.5"
+                      strokeDasharray="3 4"
+                    />
+                    <path
+                      d="M22 32h28M22 40h36M22 48h22"
+                      stroke="url(#empty-grad)"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="empty-grad"
+                        x1="0"
+                        x2="80"
+                        y1="0"
+                        y2="80"
+                      >
+                        <stop stopColor="#a855f7" />
+                        <stop offset="1" stopColor="#7e22ce" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <div className="text-[17px] font-medium text-white/85 sm:text-[18px]">
+                  No interviews yet
+                </div>
+                <p className="mt-1.5 text-[14px] text-white/50">
+                  Paste your first JD above and we&apos;ll do the rest.
+                </p>
+              </div>
             ) : (
-              <ul className="space-y-3">
-                {roles.map((role) => (
-                  <li
-                    key={role.id}
-                    className="rounded-xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20"
-                  >
-                    <div className="mb-3 flex items-baseline justify-between">
-                      <Link
-                        href={`/dashboard/${role.slug}`}
-                        className="font-medium hover:underline"
+              <>
+                {/* Desktop table */}
+                <div className="hidden overflow-hidden rounded-3xl border border-white/10 lg:block">
+                  <div className="grid grid-cols-12 gap-4 border-b border-white/10 bg-white/[0.02] px-6 py-3 text-[11px] uppercase tracking-[0.14em] text-white/40">
+                    <div className="col-span-4">Role</div>
+                    <div className="col-span-2">Created</div>
+                    <div className="col-span-1 text-right">Done</div>
+                    <div className="col-span-1 text-right">Live</div>
+                    <div className="col-span-3">Interview URL</div>
+                    <div className="col-span-1 text-right">·</div>
+                  </div>
+                  {roles.map((r, i) => {
+                    const liveN = r.candidateCount - r.completedCount;
+                    return (
+                      <div
+                        key={r.id}
+                        className="group grid grid-cols-12 items-center gap-4 border-b border-white/5 px-6 py-4 transition-all last:border-b-0 hover:-translate-y-px hover:border-white/15 hover:bg-white/[0.025]"
                       >
-                        {role.title}
-                      </Link>
-                      <span className="text-xs text-white/40">
-                        {new Date(role.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="mb-3 flex items-center gap-4 text-xs text-white/60">
-                      <span>
-                        {role.completedCount} completed
-                      </span>
-                      <span className="text-white/30">·</span>
-                      <span>
-                        {role.candidateCount - role.completedCount} in progress
-                      </span>
-                      <Link
-                        href={`/dashboard/${role.slug}`}
-                        className="ml-auto text-white/70 hover:text-white"
+                        <div className="col-span-4 flex items-center gap-3">
+                          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] font-mono text-[11px] text-white/55 ring-1 ring-inset ring-white/10">
+                            {String(i + 1).padStart(2, "0")}
+                          </div>
+                          <Link
+                            href={`/dashboard/${r.slug}`}
+                            className="truncate text-[14.5px] font-medium text-white transition-colors hover:text-purple-300"
+                          >
+                            {r.title}
+                          </Link>
+                        </div>
+                        <div className="col-span-2 text-[13px] text-white/50">
+                          {formatShortDate(r.createdAt)}
+                        </div>
+                        <div className="col-span-1 text-right font-mono text-[13px] text-white/75">
+                          {r.completedCount}
+                        </div>
+                        <div className="col-span-1 text-right">
+                          {liveN > 0 ? (
+                            <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-purple-300">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inset-0 animate-fm-pulse-dot rounded-full bg-purple-500" />
+                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-purple-500" />
+                              </span>
+                              {liveN}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-[12px] text-white/30">
+                              —
+                            </span>
+                          )}
+                        </div>
+                        <div className="col-span-3">
+                          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5">
+                            <span className="truncate font-mono text-[11.5px] text-white/55">
+                              /i/{r.slug}
+                            </span>
+                            <button
+                              onClick={() => copyLink(r.slug)}
+                              className={`ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${
+                                copiedSlug === r.slug
+                                  ? "text-emerald-300"
+                                  : "text-white/55 hover:bg-white/10 hover:text-white"
+                              }`}
+                            >
+                              {copiedSlug === r.slug ? (
+                                <>
+                                  <Check className="h-3 w-3" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3" />
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="col-span-1 text-right">
+                          <Link
+                            href={`/dashboard/${r.slug}`}
+                            className="inline-flex items-center gap-1 text-[13px] text-white/55 transition-colors hover:text-white"
+                          >
+                            View
+                            <ChevronRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Mobile cards */}
+                <ul className="flex flex-col gap-2 lg:hidden">
+                  {roles.map((r) => {
+                    const liveN = r.candidateCount - r.completedCount;
+                    return (
+                      <li
+                        key={r.id}
+                        className="rounded-2xl border border-white/10 bg-white/[0.02] p-4"
                       >
-                        View candidates →
-                      </Link>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 truncate rounded-md bg-black/40 px-3 py-2 text-xs text-white/70">
-                        {interviewLink(role.slug)}
-                      </code>
-                      <button
-                        onClick={() => copyLink(role.slug)}
-                        className="rounded-md border border-white/15 px-3 py-2 text-xs text-white/80 transition hover:bg-white/5"
-                      >
-                        {copiedSlug === role.slug ? "Copied!" : "Copy link"}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                        <Link
+                          href={`/dashboard/${r.slug}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-[14px] font-medium text-white">
+                              {r.title}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-white/45">
+                              {formatShortDate(r.createdAt)}
+                            </div>
+                          </div>
+                          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-white/40" />
+                        </Link>
+                        <div className="mt-3 flex items-center gap-4 text-[12px]">
+                          <span className="font-mono text-white/65">
+                            {r.completedCount} done
+                          </span>
+                          {liveN > 0 && (
+                            <span className="inline-flex items-center gap-1.5 font-mono text-purple-300">
+                              <span className="h-1.5 w-1.5 animate-fm-pulse-dot rounded-full bg-purple-500" />
+                              {liveN} live
+                            </span>
+                          )}
+                          <button
+                            onClick={() => copyLink(r.slug)}
+                            className={`ml-auto inline-flex items-center gap-1 text-[11px] ${
+                              copiedSlug === r.slug
+                                ? "text-emerald-300"
+                                : "text-white/55"
+                            }`}
+                          >
+                            {copiedSlug === r.slug ? (
+                              <>
+                                <Check className="h-3 w-3" /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3" /> Copy link
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
             )}
           </section>
-        </div>
+        </section>
       </main>
     </>
   );

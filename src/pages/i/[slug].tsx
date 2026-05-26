@@ -3,6 +3,12 @@ import { useState } from "react";
 import { GetServerSideProps } from "next";
 import { prisma } from "@/lib/prisma";
 import CandidateChat from "@/components/CandidateChat";
+import {
+  PHEyebrow,
+  PHInput,
+  PHButton,
+  ArrowRight,
+} from "@/components/ph";
 
 type Props = {
   slug: string;
@@ -69,56 +75,87 @@ export default function CandidatePage({ slug, roleTitle }: Props) {
       <Head>
         <title>{roleTitle} interview · PurpleHire</title>
       </Head>
-      <main className="flex min-h-screen items-center justify-center bg-black px-4 py-12">
-        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur">
-          <p className="mb-1 text-xs uppercase tracking-wide text-white/40">
-            You've been invited to an AI interview
-          </p>
-          <h1 className="mb-2 text-2xl font-semibold text-white">
+      <main className="relative grid min-h-screen place-items-center overflow-hidden bg-black px-5 text-white">
+        <div
+          className="pointer-events-none absolute inset-0 animate-fm-drift opacity-90"
+          style={{
+            background:
+              "radial-gradient(50% 60% at 30% 30%, rgba(147,51,234,0.28), rgba(147,51,234,0) 60%), radial-gradient(60% 80% at 80% 70%, rgba(126,34,206,0.22), rgba(126,34,206,0) 60%)",
+          }}
+        />
+        <div className="pointer-events-none absolute inset-0 ph-grid-bg opacity-40" />
+
+        <form
+          onSubmit={handleStart}
+          className="relative w-full max-w-[520px] animate-fm-fade-up rounded-3xl border border-white/10 bg-black/60 p-6 shadow-card-lift backdrop-blur sm:p-8"
+        >
+          <PHEyebrow live>You&apos;ve been invited to an AI interview</PHEyebrow>
+          <h1 className="mt-5 text-[28px] font-medium leading-[1.05] tracking-tight sm:text-[34px]">
             {roleTitle}
           </h1>
-          <p className="mb-6 text-sm text-white/60">
-            PurpleHire, the AI recruiter, will ask you a few questions about your
-            background and the role. Your answers will be shared with the
-            hiring team. Takes ~10 minutes.
+          <p className="mt-3 text-[14px] leading-relaxed text-white/65 sm:text-[14.5px]">
+            PurpleHire is an AI recruiter. We&apos;ll chat for ~10 minutes about
+            your experience — no trick questions, no take-home. Your responses
+            go straight to the hiring team.
           </p>
 
-          <form onSubmit={handleStart} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm text-white/70">Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                placeholder="Your full name"
-                className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white placeholder-white/30 focus:border-white/40 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-white/70">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-white placeholder-white/30 focus:border-white/40 focus:outline-none"
-              />
-            </div>
-            {error && (
-              <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                {error}
-              </p>
-            )}
-            <button
+          <div className="mt-7 flex flex-col gap-3">
+            <PHInput
+              label="Your name"
+              placeholder="e.g. Maya R."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoComplete="name"
+            />
+            <PHInput
+              label="Email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              helper="We'll send your interview summary here."
+              state={error ? "error" : "default"}
+            />
+          </div>
+
+          {error && (
+            <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-300">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-6">
+            <PHButton
               type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-white px-5 py-2.5 font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+              size="lg"
+              iconRight={<ArrowRight />}
+              className="w-full"
+              state={submitting ? "loading" : "default"}
             >
-              {submitting ? "Starting…" : "Start interview"}
-            </button>
-          </form>
-        </div>
+              {submitting ? "Connecting to PurpleHire…" : "Start interview"}
+            </PHButton>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between text-[11px] text-white/40 sm:text-[12px]">
+            <div className="flex items-center gap-1.5">
+              <svg
+                viewBox="0 0 16 16"
+                className="h-3.5 w-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              >
+                <rect x="3" y="7" width="10" height="6" rx="1.5" />
+                <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+              </svg>
+              Encrypted in transit
+            </div>
+            <div className="font-mono">~10 min</div>
+          </div>
+        </form>
       </main>
     </>
   );
