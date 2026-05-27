@@ -1,69 +1,20 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
-import { GetStaticProps } from "next";
-import { SAMPLE_ROLES, type SampleRole } from "@/lib/sampleRoles";
-import DemoChat from "@/components/DemoChat";
 import {
   PHLogo,
-  PHInput,
-  PHButton,
   PHEyebrow,
-  ArrowRight,
-  Sparkle,
   ChevronLeft,
+  ChevronRight,
 } from "@/components/ph";
 
-type Props = {
-  roles: Pick<SampleRole, "key" | "title" | "blurb">[];
-};
-
-type Started = {
-  roleKey: string;
-  roleTitle: string;
-  candidateName: string;
-};
-
-export default function DemoPage({ roles }: Props) {
-  const [roleKey, setRoleKey] = useState<string>(roles[0]?.key ?? "");
-  const [name, setName] = useState("");
-  const [started, setStarted] = useState<Started | null>(null);
-
-  const selected = roles.find((r) => r.key === roleKey);
-
-  function start(e: React.FormEvent) {
-    e.preventDefault();
-    if (!roleKey || !name.trim() || !selected) return;
-    setStarted({
-      roleKey,
-      roleTitle: selected.title,
-      candidateName: name.trim(),
-    });
-  }
-
-  if (started) {
-    return (
-      <>
-        <Head>
-          <title>{started.roleTitle} · Demo · PurpleHire</title>
-        </Head>
-        <DemoChat
-          roleKey={started.roleKey}
-          roleTitle={started.roleTitle}
-          candidateName={started.candidateName}
-          onRestart={() => setStarted(null)}
-        />
-      </>
-    );
-  }
-
+export default function DemoHub() {
   return (
     <>
       <Head>
-        <title>Demo · PurpleHire</title>
+        <title>Try PurpleHire · Demo</title>
         <meta
           name="description"
-          content="Try a sample PurpleHire interview without signing up."
+          content="Play with both sides of PurpleHire — take a sample interview as a candidate, or browse the recruiter dashboard with realistic data."
         />
       </Head>
       <main className="ph-radial-purple relative min-h-screen text-white">
@@ -80,96 +31,65 @@ export default function DemoPage({ roles }: Props) {
           </Link>
         </header>
 
-        <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-3xl place-items-center px-4 py-10 sm:px-8 sm:py-16">
+        <section className="mx-auto grid min-h-[calc(100vh-80px)] max-w-5xl place-items-center px-4 py-12 sm:px-8 sm:py-16">
           <div className="w-full">
             <div className="mb-6 flex justify-center">
-              <PHEyebrow live>Try a sample interview</PHEyebrow>
+              <PHEyebrow live>Try PurpleHire</PHEyebrow>
             </div>
             <h1 className="mb-3 text-center text-[34px] font-medium leading-[1.05] tracking-tight sm:text-[44px]">
-              Play with PurpleHire as a candidate.
+              See both sides before you sign up.
             </h1>
-            <p className="mx-auto mb-10 max-w-[520px] text-center text-[15px] leading-relaxed text-white/65 sm:text-[16px]">
-              Pick a role, give us a name, and chat with the AI recruiter.
-              Nothing is saved — it&apos;s just for you to feel what the
-              experience is like.
+            <p className="mx-auto mb-12 max-w-[580px] text-center text-[15px] leading-relaxed text-white/65 sm:text-[16px]">
+              Take a sample interview as a candidate, or browse the recruiter
+              dashboard with realistic data. No sign-in. Nothing saved.
             </p>
 
-            <form
-              onSubmit={start}
-              className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 shadow-card-lift sm:p-7"
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <div className="h-7 w-7 rounded-lg bg-purple-500/15 p-1.5 text-purple-300">
-                  <Sparkle className="h-full w-full" />
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+              <Link
+                href="/demo/candidate"
+                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 transition-all hover:-translate-y-0.5 hover:border-white/20 sm:p-7"
+              >
+                <div className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-gradient-to-b from-purple-400 to-purple-600 transition-transform duration-300 group-hover:scale-y-100" />
+                <div className="font-mono text-[11px] tracking-[0.16em] text-purple-400">
+                  CANDIDATE SIDE
                 </div>
-                <h2 className="text-[16px] font-medium tracking-tight sm:text-[18px]">
-                  Pick a role
-                </h2>
-              </div>
+                <div className="mt-4 text-[20px] font-medium tracking-tight sm:text-[22px]">
+                  Take a sample interview
+                </div>
+                <p className="mt-2 text-[14px] leading-relaxed text-white/60">
+                  Pick a role, give us a name, and have a real conversation
+                  with the AI recruiter. Get scored at the end.
+                </p>
+                <div className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-purple-300">
+                  Start the chat
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </div>
+              </Link>
 
-              <div className="mb-6 flex flex-col gap-2">
-                {roles.map((r) => (
-                  <button
-                    type="button"
-                    key={r.key}
-                    onClick={() => setRoleKey(r.key)}
-                    className={`flex items-start gap-3 rounded-2xl border bg-white/[0.02] p-4 text-left transition-all ${
-                      roleKey === r.key
-                        ? "border-purple-500/40 shadow-glow-purple-sm"
-                        : "border-white/10 hover:border-white/20 hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <span
-                      className={`mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                        roleKey === r.key
-                          ? "border-purple-400 bg-purple-500"
-                          : "border-white/25"
-                      }`}
-                    >
-                      {roleKey === r.key && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[14.5px] font-medium text-white">
-                        {r.title}
-                      </span>
-                      <span className="mt-0.5 block text-[12.5px] text-white/55">
-                        {r.blurb}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <Link
+                href="/demo/recruiter"
+                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 transition-all hover:-translate-y-0.5 hover:border-white/20 sm:p-7"
+              >
+                <div className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-gradient-to-b from-purple-400 to-purple-600 transition-transform duration-300 group-hover:scale-y-100" />
+                <div className="font-mono text-[11px] tracking-[0.16em] text-purple-400">
+                  RECRUITER SIDE
+                </div>
+                <div className="mt-4 text-[20px] font-medium tracking-tight sm:text-[22px]">
+                  Browse the dashboard
+                </div>
+                <p className="mt-2 text-[14px] leading-relaxed text-white/60">
+                  See a populated recruiter inbox — eight candidates with
+                  scores, AI verdicts, and clickable transcripts.
+                </p>
+                <div className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-purple-300">
+                  Open the dashboard
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </div>
+              </Link>
+            </div>
 
-              <PHInput
-                label="Your name (for the bot to use)"
-                placeholder="e.g. Sam"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoComplete="given-name"
-              />
-
-              <div className="mt-6">
-                <PHButton
-                  type="submit"
-                  size="lg"
-                  iconRight={<ArrowRight />}
-                  className="w-full"
-                  disabled={!name.trim() || !roleKey}
-                >
-                  Start the demo interview
-                </PHButton>
-              </div>
-
-              <p className="mt-4 text-center text-[11px] text-white/40">
-                Nothing about this conversation is stored on our servers.
-              </p>
-            </form>
-
-            <p className="mt-8 text-center text-[13px] text-white/55">
-              Want to run a real interview against your own JD?{" "}
+            <p className="mt-10 text-center text-[13px] text-white/55">
+              Ready for the real thing?{" "}
               <Link
                 href="/signin"
                 className="text-purple-300 underline-offset-2 hover:underline"
@@ -184,11 +104,3 @@ export default function DemoPage({ roles }: Props) {
     </>
   );
 }
-
-export const getStaticProps: GetStaticProps<Props> = async () => {
-  return {
-    props: {
-      roles: SAMPLE_ROLES.map(({ key, title, blurb }) => ({ key, title, blurb })),
-    },
-  };
-};
