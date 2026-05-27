@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import {
   PHLogo,
@@ -221,7 +222,9 @@ export default function CandidateChat({
       {/* HEADER */}
       <header className="flex items-center justify-between border-b border-white/10 bg-black/80 px-4 py-3 backdrop-blur sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <PHLogo size="md" wordmark={false} />
+          <Link href="/" aria-label="PurpleHire home">
+            <PHLogo size="md" wordmark={false} />
+          </Link>
           <div className="hidden h-5 w-px bg-white/10 sm:block" />
           <div className="hidden min-w-0 sm:block">
             <div className="truncate text-[13px] font-medium">{roleTitle}</div>

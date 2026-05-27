@@ -4,6 +4,7 @@
  * Tailwind classes only. CSS animations map to Framer Motion names
  * so we can swap to <motion.X> later if needed.
  */
+import Link from "next/link";
 import type {
   ReactNode,
   SVGProps,
@@ -750,7 +751,9 @@ type PHTopBarProps = {
 export function PHTopBar({ user, onSignOut }: PHTopBarProps) {
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 px-5 sm:px-8">
-      <PHLogo size="md" />
+      <Link href="/" aria-label="PurpleHire home">
+        <PHLogo size="md" />
+      </Link>
       {user ? (
         <div className="flex items-center gap-3 sm:gap-4">
           {user.email && (
