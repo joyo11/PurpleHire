@@ -9,6 +9,25 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY ?? "",
 });
 
+function closingFallback(reason: string): string {
+  if (reason === "not_interested") {
+    return "Totally understand — thanks for taking the time. Best of luck out there.";
+  }
+  if (reason === "off_topic") {
+    return "Looks like this conversation got off track. Wrapping up here — thanks for your time.";
+  }
+  if (reason === "unclear_communication") {
+    return "Looks like the connection isn't quite working — wrapping up here. Feel free to try again anytime.";
+  }
+  if (reason === "missing_must_have") {
+    return "Thanks for being upfront. This particular role might not be the right fit, but I appreciate the chat.";
+  }
+  if (reason.startsWith("red_flag_")) {
+    return "Thanks for the conversation. Wrapping up here — the recruiter will be in touch if there's a next step.";
+  }
+  return "Thanks for the chat. The recruiter will review and follow up. Have a great day.";
+}
+
 const END_INTERVIEW_TOOL: ChatCompletionTool = {
   type: "function",
   function: {
@@ -74,9 +93,15 @@ export async function generateResponse(
       }
     }
 
-    const text = (message.content ?? "")
+    let text = (message.content ?? "")
       .replace(/\(end_interview\(.*?\)\)|\[End of interview\]/g, "")
       .trim();
+
+    // Belt-and-suspenders: if the model called end_interview without any
+    // accompanying text, inject a polite goodbye so the candidate sees one.
+    if (endInterviewReason && !text) {
+      text = closingFallback(endInterviewReason);
+    }
 
     return { text, endInterviewReason };
   } catch (error: unknown) {
