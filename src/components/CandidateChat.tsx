@@ -59,7 +59,16 @@ export default function CandidateChat({
   const [ended, setEnded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initRef = useRef(false);
+
+  // Auto-grow textarea to fit its content (capped by max-h).
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [input]);
 
   // Type out only the most recently arrived assistant message.
   const lastAssistantId = (() => {
@@ -243,6 +252,7 @@ export default function CandidateChat({
             }`}
           >
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -254,7 +264,7 @@ export default function CandidateChat({
               rows={1}
               placeholder={ended ? "Interview ended" : "Type your answer…"}
               disabled={ended || sending}
-              className="max-h-32 flex-1 resize-none bg-transparent text-[15px] leading-relaxed text-white placeholder:text-white/35 focus:outline-none disabled:cursor-not-allowed"
+              className="max-h-48 min-h-[1.5rem] flex-1 resize-none overflow-y-auto bg-transparent text-[15px] leading-relaxed text-white placeholder:text-white/35 focus:outline-none disabled:cursor-not-allowed"
             />
             <button
               type="submit"
