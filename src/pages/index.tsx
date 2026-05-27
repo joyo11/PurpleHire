@@ -36,7 +36,6 @@ export default function Home() {
           name="description"
           content="Paste the JD. PurpleHire interviews every applicant, scores them honestly, and hands you the top 5%."
         />
-        <link rel="icon" href="/PurpleHire.png" />
       </Head>
 
       <main className="ph-radial-purple relative min-h-screen text-white">
