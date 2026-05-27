@@ -60,6 +60,31 @@ The bot system prompt is built dynamically from the role's JD + an LLM-extracted
 
 ---
 
+## Roadmap
+
+Things shipping next, in rough priority order.
+
+### 1. Voice-mode interviews (agentic, real-time)
+Today the candidate types. Adding a voice-first mode where the bot speaks and the candidate answers out loud — same prompt logic, same scoring, but conducted through the OpenAI Realtime API (or equivalent). Should feel like a phone screen with no scheduling. Voice transcripts still feed the same `scoreTranscript` pipeline so verdicts stay consistent across chat and voice candidates.
+
+### 2. Stay-on-screen guardrails during the interview
+Right now nothing stops a candidate from popping over to another tab to google an answer or ask ChatGPT mid-question. Adding:
+- **Tab visibility detection** (`document.visibilityState`) — log how many times the tab loses focus and how long each absence lasted.
+- **Soft full-screen suggestion** at interview start.
+- **Surfaced to the recruiter** on the candidate transcript ("left tab 3 times, total 4 min away") so they can weight the score accordingly.
+
+Not a hard lock — we don't want to feel like proctoring software. Just visibility into engagement.
+
+### 3. AI-written answer detection
+Catching candidates who paste answers from ChatGPT / Claude / etc. Multiple signals combined:
+- **Paste events** (`onPaste`) — flag any answer that arrived via paste rather than typing.
+- **Timing analysis** — long silence followed by a long polished answer is a tell.
+- **An LLM classifier pass** at scoring time — feed each candidate answer to a small model and ask "does this read as human or AI-generated?". Score gets a confidence band rather than a hard verdict.
+
+The bot won't accuse candidates; the signal lives on the recruiter's transcript view alongside the score.
+
+---
+
 ## Project structure
 
 ```
