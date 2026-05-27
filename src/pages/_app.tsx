@@ -3,6 +3,7 @@ import type { AppType } from "next/app";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { Fredoka, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "@/styles/globals.css";
 
 const fredoka = Fredoka({
@@ -26,6 +27,7 @@ const MyApp: AppType<{ session: Session | null }> = ({
       <div className={`${fredoka.variable} ${jetbrainsMono.variable} min-h-screen bg-black font-sans`}>
         <Component {...pageProps} />
       </div>
+      <Analytics />
     </SessionProvider>
   );
 };
