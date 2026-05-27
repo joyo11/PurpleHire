@@ -1,148 +1,172 @@
-# PurpleHire Agent
+# PurpleHire
 
-## Overview
-This project is a modern, AI-powered interview agent designed for Purplefish. The Purplehire Agent automates candidate screening by conducting structured, natural-feeling interviews, handling conditional logic, and persisting all conversations for later review. The system leverages a hybrid approach: a hardcoded interview script for validation and flow, and a powerful LLM (GPT-4o) for natural conversation and adaptability.
+**AI interviews for any job description.** Recruiters paste a JD, get a shareable link, and receive a scored shortlist of candidates back — no scheduling, no phone screens.
 
-
-## Design Decisions, Assumptions, and Technical Tidbits
-
-### Interview Flow and Ending Logic
-A core design decision in this project was to combine a flexible LLM-driven script with explicit backend logic to determine when the interview should end. The interview can end early or late based on both candidate responses and the requirements of the role. Here's how and why:
-
-- **Mandatory Requirements:**
-  The interview ends immediately if the candidate does not meet hard requirements such as relevant degree, minimum experience, willingness to relocate (even with relocation support), salary flexibility, or Linux comfort. This is enforced both in the LLM prompt and with backend checks for specific phrases, ensuring the process is robust even if the LLM output varies.
-- **Communication and Engagement:**
-  If a candidate gives unclear or off-topic answers three times, the interview ends. This ensures that only candidates who can communicate clearly and stay engaged continue.
-- **Growth Mindset:**
-  If a candidate is not open to learning new technologies, the interview ends, reflecting the company's value on adaptability and willingness to learn.
-- **Not Ending on Non-Mandatory Questions:**
-  The interview does not end if a candidate cannot provide an example for a soft-skill or follow-up question (e.g., "Tell me about a time you collaborated with a teammate"). These are not hard requirements; the interview continues to allow the candidate to demonstrate fit in other areas.
-- **Completion:**
-  The interview ends naturally when all questions are answered, or when the candidate has no further questions.
-
-**Reasoning:**
-This approach ensures the interview is both efficient and fair: it ends early when a candidate is clearly not a fit, but gives candidates every reasonable opportunity to clarify, elaborate, or show willingness to learn. Only truly mandatory requirements or repeated communication issues will end the interview.
-
-### Other Key Design Choices
-- **Hybrid Script Approach:**
-  The system combines a structured `interviewQuestions` object for validation and UI flow with a detailed LLM system prompt for natural conversation and edge cases.
-- **Backend Fallbacks:**
-  The backend checks for a variety of polite closing phrases and tool calls to ensure the interview ends reliably, even if the LLM output is not perfectly structured.
-- **Session Management:**
-  All conversations are persisted in a database, and users can revisit past sessions.
-- **Modern Stack:**
-  The project uses Next.js 15, React 18, Prisma, and GPT-4o for a modern, maintainable codebase.
-- **User Experience:**
-  The chat interface features a typing effect, a welcoming intro, and disables input when the interview ends for clarity.
-
-### Assumptions
-- **Single Script:**
-  The Purplehire Agent only needs to support one interview script, so the script is hardcoded and not user-configurable.
-- **Mandatory Requirements:**
-  We assumed certain requirements (e.g., willingness to relocate, salary range, minimum experience) are truly mandatory and should end the interview if not met.
-- **User is a Candidate:**
-  The chat interface is designed for candidates only, not for recruiters or admins.
-- **English Language:**
-  The system prompt and validation assume the interview is conducted in English.
-
-### Technical Tidbits
-- **Ending detection** is robust, using both LLM tool calls and backend substring checks.
-- **Structured LLM function calling** is used (e.g., `end_interview`, `mark_question_complete`) to let the agent signal interview state transitions, making the flow robust and less reliant on brittle substring checks.
-- **Question progression logic** ensures the interview flow does not skip questions, even if there is back-and-forth or clarification within a single question.
-- **Memory handling** is implemented to avoid re-asking for the candidate's name, though perfect memory is a known challenge for LLMs.
-- **Error handling** is user-friendly, with recovery prompts for unclear or off-topic responses.
+🔗 Live: [purplehire.vercel.app](https://purplehire.vercel.app)
 
 ---
 
-## Setup Instructions
+## What it does
 
-1. Clone the repository:
+Two-sided AI interview product:
+
+- **Recruiter side** — sign in with Google, paste a job description, get a shareable interview link, then watch candidates come in with AI-generated fit scores (1.0–10.0) and one-line verdicts.
+- **Candidate side** — open the link, enter name + email, chat with "PurpleHire" (an AI recruiter persona) for ~10 minutes. The conversation is steered by an interview plan the LLM extracts from the JD.
+- **Public demo** — `/demo` lets visitors try both sides without signing in or hitting the database.
+
+## Features
+
+### Recruiter
+- Google OAuth sign-in (NextAuth)
+- Create interview from any pasted JD — the LLM validates it's actually a JD and rejects non-JDs (cricket match summaries, recipes, etc.)
+- Per-role shareable candidate link (`/i/<slug>`)
+- Candidate inbox with filter pills (All / Completed / In progress), search, sort, and per-candidate transcript view
+- Score badges tiered emerald (≥8) / yellow (≥6) / red, with one-decimal precision (e.g. 8.7/10)
+- **Send next-round email** button on every ≥8.0 candidate — opens the recruiter's default mail client with a pre-filled draft
+- Delete role or individual candidate (transactional cascade)
+
+### Candidate
+- Anonymous interview at `/i/<slug>` — name + email gate, then chat
+- Character-by-character typewriter on the latest bot message
+- Inactivity timer: 5-min "still there?" banner, 10-min auto-end with `inactive` reason
+- Auto-grow composer
+- Clean "Interview complete" card on natural conclusion
+
+### Interview behavior
+The bot system prompt is built dynamically from the role's JD + an LLM-extracted plan. Key behaviors enforced in prompt + server-side belt-and-suspenders:
+
+- **Hard exit on disinterest.** "not interested" / "lol no" / "changed my mind" → end immediately with one warm line.
+- **Two-strike off-topic system.** Strike 1 redirect, strike 2 ends with `off_topic`. Counted from the first off-topic message regardless of greeting phase.
+- **Honest must-have checks.** Woven into open questions, never as yes/no checklist grilling. If a must-have is clearly missing after one follow-up, bot is upfront about it rather than fake-polite.
+- **Natural wrap detection.** "no more questions" / "thanks for the chat" → ends; no infinite "have a great day" loops.
+- **Server-side safety net** in `/api/chat`: if the bot writes a closing line but forgets the `end_interview` tool call, we infer the reason from candidate context and end the conversation anyway.
+
+### Public demo
+- `/demo` — chooser between candidate and recruiter sides
+- `/demo/candidate` — pick from 3 sample roles, take a real chat (ephemeral, no DB writes), get scored at the end via `/api/demo/score`
+- `/demo/recruiter` — read-only dashboard with one role + 8 hardcoded candidates (scores 5.5–9.4)
+- `/demo/recruiter/[id]` — per-candidate transcript with AI verdict callout
+
+---
+
+## Tech stack
+
+- **Next.js 16** (Pages Router) + **React 18** + **TypeScript**
+- **Tailwind CSS** with custom design tokens (Fredoka + JetBrains Mono via `next/font`, purple-anchored palette, `fm-*` animations that map to Framer Motion semantics)
+- **Prisma 6** + **PostgreSQL** (Vercel Postgres in prod, schema synced via `prisma db push`)
+- **NextAuth 4** with Google provider + Prisma adapter, database sessions
+- **OpenAI** — `gpt-4o` for interviews, `gpt-4o-mini` for JD analysis and scoring (JSON mode)
+- **Vercel** hosting + GitHub auto-deploy
+
+---
+
+## Project structure
+
+```
+src/
+├── components/
+│   ├── ph/index.tsx           # Design system (PHLogo, PHButton, PHFitBadge,
+│   │                          # PHMessage, PHTopBar, PHMockPanel, icons...)
+│   ├── CandidateChat.tsx      # Live candidate-side chat UI
+│   └── DemoChat.tsx           # Ephemeral demo chat UI
+├── lib/
+│   ├── prisma.ts              # Shared Prisma client
+│   ├── auth.ts                # NextAuth options
+│   ├── jdAnalyzer.ts          # OpenAI call: validate JD + extract plan
+│   ├── interviewPrompt.ts     # Builds the bot system prompt from role + plan
+│   ├── interviewScorer.ts     # Transcript -> {score, verdict} (DB + pure)
+│   ├── inviteEmail.ts         # mailto: builder for next-round email
+│   ├── sampleRoles.ts         # 3 hardcoded roles for the demo
+│   └── demoRecruiter.ts       # Hardcoded recruiter-demo data
+├── pages/
+│   ├── index.tsx              # Marketing landing (split hero + mock panel)
+│   ├── signin.tsx             # Google sign-in
+│   ├── dashboard.tsx          # Recruiter dashboard (roles list + create form)
+│   ├── dashboard/
+│   │   ├── [slug].tsx         # Role detail (candidates inbox)
+│   │   └── [slug]/
+│   │       └── [candidateId].tsx  # Transcript view
+│   ├── i/[slug].tsx           # Candidate landing + chat
+│   ├── demo.tsx               # Demo hub (2-card chooser)
+│   ├── demo/
+│   │   ├── candidate.tsx      # Candidate-side demo flow
+│   │   ├── recruiter.tsx      # Recruiter-side demo dashboard
+│   │   └── recruiter/[id].tsx # Per-candidate demo transcript
+│   └── api/
+│       ├── auth/[...nextauth].ts
+│       ├── chat.ts            # Main interview chat
+│       ├── roles/
+│       │   ├── index.ts       # GET/POST roles
+│       │   └── [id].ts        # DELETE role (cascading)
+│       ├── candidates/[id].ts # DELETE candidate
+│       ├── interviews/
+│       │   ├── start.ts       # Create candidate + conversation
+│       │   └── end.ts         # End conversation (used by idle timer)
+│       └── demo/
+│           ├── chat.ts        # Ephemeral demo chat (no DB)
+│           └── score.ts       # Ephemeral demo scoring
+└── prisma/
+    └── schema.prisma          # User, Account, Session, Role, Candidate,
+                                # Conversation, Message + NextAuth tables
+```
+
+---
+
+## Local setup
+
+1. Clone:
    ```bash
    git clone https://github.com/joyo11/PurpleHire.git
+   cd PurpleHire
    ```
-2. In the root folder, create a `.env` file if it doesn't already exist.
-3. Add your environment variables in the `.env` file, such as:
-   ```env
-   DATABASE_URL="file:./dev.db"
-   OPENAI_API_KEY=your-api-key-here
-   ```
-4. Install all project dependencies:
+2. Install:
    ```bash
    npm install
    ```
-5. Install the Prisma client:
+3. Create `.env.local` with:
+   ```env
+   DATABASE_URL="postgresql://..."           # any Postgres (Neon free tier works)
+   OPENAI_API_KEY="sk-..."
+   NEXTAUTH_URL="http://localhost:3000"
+   NEXTAUTH_SECRET="..."                      # `openssl rand -base64 32`
+   GOOGLE_CLIENT_ID="..."                     # from Google Cloud Console
+   GOOGLE_CLIENT_SECRET="..."
+   ```
+4. Push the schema:
    ```bash
-   npm install prisma@6.8.2 @prisma/client@6.8.2
+   npx prisma db push
    ```
-6. Generate the Prisma client:
-   ```bash
-   npx prisma generate
-   ```
-7. Reset the database schema (optional):
-   ```bash
-   npx prisma migrate reset
-   ```
-   It will prompt:
-   ```
-   Are you sure you want to reset your database? All data will be lost. › (y/N)
-   ```
-   Type `yes` and press Enter to continue.
-8. Start your development server:
+5. Run:
    ```bash
    npm run dev
    ```
 
----
-
-## Features in Detail
-- **Conversational Interview Flow:**
-  The Purplehire Agent conducts interviews using a natural, human-like chat interface, following a predefined script with dynamic branching and follow-ups.
-- **Conditional Logic:**
-  Handles early exits, clarifications, and follow-up questions based on candidate responses.
-- **Session Persistence:**
-  All conversations are stored in a database, allowing users to revisit and review past interviews.
-- **Session History & Management:**
-  Users can view and return to past interview sessions, and can change the names of their sessions for easier organization.
-- **FAQ Access:**
-  Users can access a FAQ section for common questions about the interview process or the platform.
-- **Role Q&A:**
-  The Purplehire Agent can answer basic questions about the role or company, based on static knowledge in the system prompt.
-- **Robust Error Handling:**
-  Gracefully manages unclear, off-topic, or invalid responses with recovery prompts and fallback logic.
-- **Modern UI/UX:**
-  Features a typing effect, welcoming intro, and disables input when the interview ends for clarity.
+### Google OAuth setup
+In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials):
+1. OAuth consent screen → External → fill in basics.
+2. Create OAuth client → Web application.
+3. Authorized redirect URIs:
+   - `http://localhost:3000/api/auth/callback/google`
+   - `https://<your-vercel-url>/api/auth/callback/google`
+4. Copy the Client ID + Secret into your env.
 
 ---
 
-## Code Structure
-- **src/pages/api/chat.ts:** Backend API route for handling chat messages, managing conversation state, and coordinating with the OpenAI service.
-- **src/services/openaiService.ts:** Handles interaction with the OpenAI API, including the system prompt and parsing LLM responses.
-- **src/components/ChatInterface.tsx:** Main React component for the chat UI, managing chat state, user input, and session management.
-- **src/services/interviewService.ts:** Defines the interview script, question structure, and validation logic.
-- **src/components/Logo.tsx:** Renders the Purplehire logo as an SVG for branding.
-- **package.json:** Lists dependencies and scripts for running and maintaining the project.
+## Deployment
 
----
+The project ships to Vercel — `npm run vercel-build` runs `prisma generate && prisma db push --accept-data-loss --skip-generate && next build`, so schema changes apply automatically on deploy.
 
-## Technologies Used
-- **Next.js 15**
-- **React 18**
-- **Prisma (with SQLite)**
-- **OpenAI GPT-4o**
-- **Tailwind CSS**
-- **TypeScript**
-
----
-
-## Contact
-For questions or support:
-
-- **Email:** shafay11august@gmail.com
-- **GitHub:** [@joyo11](https://github.com/joyo11)
+Required environment variables on Vercel: same as local, but `NEXTAUTH_URL` set to your production URL.
 
 ---
 
 ## License
-Copyright (c) 2025 Mohammad Shafay Joyo
 
+Copyright © 2026 Mohammad Shafay Joyo. All rights reserved.
 
+---
+
+## Contact
+
+- **Author:** Mohammad Shafay Joyo ([@joyo11](https://github.com/joyo11))
+- **Email:** shafay11august@gmail.com
