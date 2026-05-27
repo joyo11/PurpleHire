@@ -5,6 +5,31 @@ import { buildInterviewSystemPrompt } from "@/lib/interviewPrompt";
 import type { InterviewPlan } from "@/lib/jdAnalyzer";
 import { scoreInterview } from "@/lib/interviewScorer";
 
+/** If the LLM wrote an obvious closing line but forgot to fire the
+ * end_interview tool, infer the right end reason from the candidate's
+ * most recent message. This is a known LLM tic (text-or-tool, not both).
+ * False positives just end an interview the bot was already trying to
+ * end, so the risk is low. */
+function inferEndFromText(botText: string, userText: string): string | undefined {
+  const b = botText.toLowerCase();
+  const u = userText.toLowerCase();
+  const wrapPhrase =
+    /(wrap up|wrapping up|i'll end here|best of luck out there|wishing you the best|wrap things up|so i'll wrap|let's wrap)/.test(
+      b,
+    );
+  if (!wrapPhrase) return undefined;
+
+  if (/not interested|don'?t want|changed my mind|isn'?t for me|lol no/.test(u)) {
+    return "not_interested";
+  }
+  if (
+    /(can only discuss|outside what i'm here|focus.*role|on topic)/.test(b)
+  ) {
+    return "off_topic";
+  }
+  return "completed";
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -99,10 +124,15 @@ export default async function handler(
       createdAt: m.createdAt,
     }));
 
-    const { text, endInterviewReason } = await generateResponse(
-      history,
-      systemPrompt,
-    );
+    const llm = await generateResponse(history, systemPrompt);
+    const text = llm.text;
+    // Safety net: if the LLM produced an obvious wrap-up message without
+    // firing the tool call, infer the end reason from candidate context.
+    // (Some models produce the closing copy but forget the structured call.)
+    let endInterviewReason = llm.endInterviewReason;
+    if (!endInterviewReason && text) {
+      endInterviewReason = inferEndFromText(text, userMessage.content);
+    }
 
     let assistantMessage = null;
     if (text) {
