@@ -58,9 +58,16 @@ export default function CandidateChat({
   const [sending, setSending] = useState(false);
   const [ended, setEnded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [idleWarning, setIdleWarning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initRef = useRef(false);
+  const idleTimerRef = useRef<number | null>(null);
+  const endTimerRef = useRef<number | null>(null);
+
+  // Idle thresholds.
+  const IDLE_WARN_MS = 5 * 60 * 1000; // 5 minutes -> show "still there?"
+  const IDLE_END_MS = 10 * 60 * 1000; // 10 minutes -> auto-end
 
   // Auto-grow textarea to fit its content (capped by max-h).
   useEffect(() => {
@@ -69,6 +76,53 @@ export default function CandidateChat({
     ta.style.height = "auto";
     ta.style.height = `${ta.scrollHeight}px`;
   }, [input]);
+
+  // Idle timer: every time messages change, reset the warning/end timers.
+  // If 5 min pass with no new activity, show a "still there?" banner.
+  // If 10 min pass, auto-end the interview.
+  function clearIdleTimers() {
+    if (idleTimerRef.current !== null) {
+      window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+    if (endTimerRef.current !== null) {
+      window.clearTimeout(endTimerRef.current);
+      endTimerRef.current = null;
+    }
+  }
+
+  async function autoEndInterview() {
+    try {
+      const res = await fetch("/api/interviews/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, reason: "inactive" }),
+      });
+      if (res.ok) {
+        setEnded(true);
+        setIdleWarning(false);
+      }
+    } catch {
+      // network failed — try again next time something changes
+    }
+  }
+
+  useEffect(() => {
+    clearIdleTimers();
+    setIdleWarning(false);
+    if (ended) return;
+
+    idleTimerRef.current = window.setTimeout(() => {
+      setIdleWarning(true);
+    }, IDLE_WARN_MS);
+
+    endTimerRef.current = window.setTimeout(() => {
+      autoEndInterview();
+    }, IDLE_END_MS);
+
+    return clearIdleTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, ended, conversationId]);
 
   // Type out only the most recently arrived assistant message.
   const lastAssistantId = (() => {
@@ -222,6 +276,13 @@ export default function CandidateChat({
             </p>
           )}
 
+          {idleWarning && !ended && (
+            <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-[13px] text-yellow-200">
+              Still there? We&apos;ll wrap up the interview automatically in a
+              few minutes if no reply.
+            </div>
+          )}
+
           {ended && (
             <div className="mt-6 overflow-hidden rounded-3xl border border-purple-500/40 bg-gradient-to-br from-purple-500/[0.12] via-purple-500/[0.04] to-transparent p-5 shadow-glow-purple animate-fm-fade-up animate-fm-pulse-glow sm:p-6">
               <div className="flex items-center gap-3">
@@ -254,7 +315,22 @@ export default function CandidateChat({
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (idleWarning) {
+                  setIdleWarning(false);
+                  // Restart the idle timers — candidate is engaged.
+                  clearIdleTimers();
+                  idleTimerRef.current = window.setTimeout(
+                    () => setIdleWarning(true),
+                    IDLE_WARN_MS,
+                  );
+                  endTimerRef.current = window.setTimeout(
+                    autoEndInterview,
+                    IDLE_END_MS,
+                  );
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
