@@ -41,6 +41,22 @@ function formatShortDate(iso: string) {
   });
 }
 
+function TrashIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 4h10M6 4V2.5h4V4M5 4l.6 9a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9L11 4" />
+    </svg>
+  );
+}
+
 export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
   const [roles, setRoles] = useState<RoleSummary[]>(initialRoles);
   const [title, setTitle] = useState("");
@@ -48,6 +64,7 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -99,6 +116,28 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
     setTimeout(() => setCopiedSlug(null), 1500);
   }
 
+  async function deleteRole(role: RoleSummary) {
+    const summary =
+      role.candidateCount > 0
+        ? `Delete "${role.title}"? This permanently removes ${role.candidateCount} candidate${role.candidateCount === 1 ? "" : "s"} and their transcripts.`
+        : `Delete "${role.title}"?`;
+    if (!confirm(summary)) return;
+    setDeletingId(role.id);
+    try {
+      const res = await fetch(`/api/roles/${role.id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Could not delete the role.");
+        return;
+      }
+      setRoles((rs) => rs.filter((r) => r.id !== role.id));
+    } catch {
+      alert("Network error. Try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <>
       <Head>
@@ -127,8 +166,8 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
             </div>
             <div className="text-[12px] text-white/45 sm:text-[13px]">
               {roles.length === 0
-                ? "0 interviews live"
-                : `${roles.length} role${roles.length === 1 ? "" : "s"} · ${doneCount} completed · ${liveCount} live`}
+                ? "0 interviews ongoing"
+                : `${roles.length} role${roles.length === 1 ? "" : "s"} · ${doneCount} completed · ${liveCount} ongoing`}
             </div>
           </div>
 
@@ -284,7 +323,7 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                     <div className="col-span-4">Role</div>
                     <div className="col-span-2">Created</div>
                     <div className="col-span-1 text-right">Done</div>
-                    <div className="col-span-1 text-right">Live</div>
+                    <div className="col-span-1 text-right">Ongoing</div>
                     <div className="col-span-3">Interview URL</div>
                     <div className="col-span-1 text-right">·</div>
                   </div>
@@ -354,7 +393,15 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                             </button>
                           </div>
                         </div>
-                        <div className="col-span-1 text-right">
+                        <div className="col-span-1 flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => deleteRole(r)}
+                            disabled={deletingId === r.id}
+                            title="Delete interview"
+                            className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                          >
+                            <TrashIcon />
+                          </button>
                           <Link
                             href={`/dashboard/${r.slug}`}
                             className="inline-flex items-center gap-1 text-[13px] text-white/55 transition-colors hover:text-white"
@@ -377,20 +424,29 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                         key={r.id}
                         className="rounded-2xl border border-white/10 bg-white/[0.02] p-4"
                       >
-                        <Link
-                          href={`/dashboard/${r.slug}`}
-                          className="flex items-start justify-between gap-3"
-                        >
-                          <div className="min-w-0">
-                            <div className="truncate text-[14px] font-medium text-white">
-                              {r.title}
+                        <div className="flex items-start justify-between gap-3">
+                          <Link
+                            href={`/dashboard/${r.slug}`}
+                            className="flex min-w-0 flex-1 items-start gap-3"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-[14px] font-medium text-white">
+                                {r.title}
+                              </div>
+                              <div className="mt-0.5 text-[11px] text-white/45">
+                                {formatShortDate(r.createdAt)}
+                              </div>
                             </div>
-                            <div className="mt-0.5 text-[11px] text-white/45">
-                              {formatShortDate(r.createdAt)}
-                            </div>
-                          </div>
-                          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-white/40" />
-                        </Link>
+                          </Link>
+                          <button
+                            onClick={() => deleteRole(r)}
+                            disabled={deletingId === r.id}
+                            className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                            aria-label="Delete interview"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
                         <div className="mt-3 flex items-center gap-4 text-[12px]">
                           <span className="font-mono text-white/65">
                             {r.completedCount} done
@@ -398,7 +454,7 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                           {liveN > 0 && (
                             <span className="inline-flex items-center gap-1.5 font-mono text-purple-300">
                               <span className="h-1.5 w-1.5 animate-fm-pulse-dot rounded-full bg-purple-500" />
-                              {liveN} live
+                              {liveN} ongoing
                             </span>
                           )}
                           <button

@@ -65,6 +65,22 @@ function MailIcon({ className = "h-3 w-3" }: { className?: string }) {
   );
 }
 
+function TrashIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 4h10M6 4V2.5h4V4M5 4l.6 9a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9L11 4" />
+    </svg>
+  );
+}
+
 type FilterKey = "all" | "completed" | "in_progress";
 type SortKey = "score" | "recency";
 
@@ -76,13 +92,34 @@ export default function RoleDetail({
   user,
   role,
   baseUrl,
-  candidates,
+  candidates: initialCandidates,
 }: Props) {
+  const [candidates, setCandidates] = useState<CandidateRow[]>(initialCandidates);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sort, setSort] = useState<SortKey>("score");
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedJd, setCopiedJd] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteCandidate(c: CandidateRow) {
+    if (!confirm(`Delete ${c.name}'s interview and transcript permanently?`))
+      return;
+    setDeletingId(c.id);
+    try {
+      const res = await fetch(`/api/candidates/${c.id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Could not delete the candidate.");
+        return;
+      }
+      setCandidates((cs) => cs.filter((x) => x.id !== c.id));
+    } catch {
+      alert("Network error. Try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const link = `${baseUrl}/i/${role.slug}`;
   const linkShort = `/i/${role.slug}`;
@@ -162,8 +199,8 @@ export default function RoleDetail({
               <div className="mt-2 text-[13px] text-white/45 sm:text-[14px]">
                 Created {new Date(role.createdAt).toLocaleDateString()} ·{" "}
                 {candidates.length} candidate
-                {candidates.length === 1 ? "" : "s"} · {inProgressCount} in
-                progress
+                {candidates.length === 1 ? "" : "s"} · {inProgressCount}{" "}
+                ongoing
               </div>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
@@ -313,7 +350,7 @@ export default function RoleDetail({
                       ) : c.status === "in_progress" ? (
                         <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-purple-300">
                           <span className="h-1.5 w-1.5 animate-fm-pulse-dot rounded-full bg-purple-500" />
-                          live
+                          ongoing
                         </span>
                       ) : (
                         <span className="font-mono text-[12px] text-white/30">
@@ -330,7 +367,7 @@ export default function RoleDetail({
                         </span>
                       )}
                     </div>
-                    <div className="col-span-2 flex justify-end gap-2">
+                    <div className="col-span-2 flex justify-end gap-1.5">
                       {c.score !== null && c.score >= PASS_THRESHOLD && (
                         <a
                           href={buildNextRoundMailto({
@@ -352,6 +389,14 @@ export default function RoleDetail({
                         Transcript
                         <ChevronRight className="h-3 w-3" />
                       </Link>
+                      <button
+                        onClick={() => deleteCandidate(c)}
+                        disabled={deletingId === c.id}
+                        title="Delete candidate"
+                        className="grid h-7 w-7 place-items-center rounded-full text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                      >
+                        <TrashIcon />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -364,31 +409,41 @@ export default function RoleDetail({
                     key={c.id}
                     className="rounded-2xl border border-white/10 bg-white/[0.02] p-3"
                   >
-                    <Link
-                      href={`/dashboard/${role.slug}/${c.id}`}
-                      className="flex items-center gap-3"
-                    >
-                      <PHAvatar letter={firstInitial(c.name)} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[14px] font-medium">
-                          {c.name}
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/dashboard/${role.slug}/${c.id}`}
+                        className="flex min-w-0 flex-1 items-center gap-3"
+                      >
+                        <PHAvatar letter={firstInitial(c.name)} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[14px] font-medium">
+                            {c.name}
+                          </div>
+                          <div className="truncate text-[11px] text-white/45">
+                            {c.email}
+                          </div>
                         </div>
-                        <div className="truncate text-[11px] text-white/45">
-                          {c.email}
-                        </div>
-                      </div>
+                      </Link>
                       {c.status === "completed" && c.score !== null ? (
-                        <PHFitBadge score={c.score * 10} />
+                        <PHFitBadge score={c.score} />
                       ) : c.status === "in_progress" ? (
                         <span className="font-mono text-[11px] text-purple-300">
-                          live
+                          ongoing
                         </span>
                       ) : (
                         <span className="font-mono text-[11px] text-white/30">
                           —
                         </span>
                       )}
-                    </Link>
+                      <button
+                        onClick={() => deleteCandidate(c)}
+                        disabled={deletingId === c.id}
+                        className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                        aria-label="Delete candidate"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                     {c.verdict && (
                       <p className="mt-2 text-[12px] leading-relaxed text-white/55 line-clamp-2">
                         {c.verdict}
