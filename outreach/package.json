@@ -1,0 +1,25 @@
+{
+  "name": "purplehire-outreach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local CLI for finding recruiter emails (Apollo), drafting personalized outreach (OpenAI), and sending from Gmail. Not deployed.",
+  "scripts": {
+    "outreach": "tsx cli.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "commander": "^12.1.0",
+    "csv-parse": "^5.6.0",
+    "dotenv": "^16.4.7",
+    "nodemailer": "^6.9.16",
+    "openai": "^4.102.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^20.17.10",
+    "@types/nodemailer": "^6.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
