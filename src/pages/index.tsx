@@ -22,8 +22,8 @@ const STEPS = [
   },
   {
     n: "03",
-    t: "Pick the top 5%",
-    d: "Sorted by fit score with reasoning. Skip the bottom 95% with confidence.",
+    t: "Email the top 5%",
+    d: "Sorted by fit score with reasoning. One click sends a next-round invite to anyone scoring 8+.",
   },
 ];
 

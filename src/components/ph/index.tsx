@@ -398,6 +398,8 @@ type PHCandidateRowProps = {
   tags?: string[];
   shimmer?: boolean;
   compact?: boolean;
+  /** Show the "Email" pill next to the score when score >= 8 (decoration only). */
+  showEmailPill?: boolean;
 };
 export function PHCandidateRow({
   letter,
@@ -407,7 +409,9 @@ export function PHCandidateRow({
   tags = [],
   shimmer = false,
   compact = false,
+  showEmailPill = false,
 }: PHCandidateRowProps) {
+  const passing = score >= 8;
   return (
     <div
       className={[
@@ -439,7 +443,26 @@ export function PHCandidateRow({
           </div>
         )}
       </div>
-      <PHFitBadge score={score} />
+      <div className="flex items-center gap-2">
+        {showEmailPill && passing && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+            <svg
+              viewBox="0 0 16 16"
+              className="h-2.5 w-2.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="2" y="3.5" width="12" height="9" rx="1.5" />
+              <path d="M2.5 5l5.5 4 5.5-4" />
+            </svg>
+            Email
+          </span>
+        )}
+        <PHFitBadge score={score} />
+      </div>
     </div>
   );
 }
@@ -479,6 +502,7 @@ export function PHMockPanel() {
           name="Maya R."
           score={9.4}
           tags={["React", "TypeScript", "Design systems"]}
+          showEmailPill
         />
         <PHCandidateRow
           letter="D"
@@ -486,12 +510,14 @@ export function PHMockPanel() {
           score={9.1}
           tags={["React", "Node", "GraphQL"]}
           shimmer
+          showEmailPill
         />
         <PHCandidateRow
           letter="P"
           name="Priya S."
           score={8.7}
           tags={["React Native", "Performance"]}
+          showEmailPill
         />
       </div>
 
