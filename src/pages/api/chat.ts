@@ -13,17 +13,24 @@ import { scoreInterview } from "@/lib/interviewScorer";
 function inferEndFromText(botText: string, userText: string): string | undefined {
   const b = botText.toLowerCase();
   const u = userText.toLowerCase();
+
+  // Anything a reasonable candidate would read as "the interview is over."
   const wrapPhrase =
-    /(wrap up|wrapping up|i'll end here|best of luck out there|wishing you the best|wrap things up|so i'll wrap|let's wrap)/.test(
-      b,
-    );
+    /(wrap up|wrapping up|i'?ll end here|best of luck out there|wishing you the best|wrap things up|so i'?ll wrap|let'?s wrap)/.test(b) ||
+    /(really enjoyed (our|the) chat|enjoyed (our|the) (chat|conversation))/.test(b) ||
+    /(recruiter will (review|be in touch|follow up)|recruiter (will|may) reach out)/.test(b) ||
+    /(thanks (so much )?for (your time|taking the time|chatting))/.test(b) ||
+    /(have a (great|wonderful|nice) day)/.test(b) ||
+    /(we[' ]?ll be in touch|we will be in touch)/.test(b) ||
+    /(all the best in your (job search|career))/.test(b);
+
   if (!wrapPhrase) return undefined;
 
   if (/not interested|don'?t want|changed my mind|isn'?t for me|lol no/.test(u)) {
     return "not_interested";
   }
   if (
-    /(can only discuss|outside what i'm here|focus.*role|on topic)/.test(b)
+    /(can only discuss|outside what i'?m here|focus.*role|on[- ]topic)/.test(b)
   ) {
     return "off_topic";
   }
