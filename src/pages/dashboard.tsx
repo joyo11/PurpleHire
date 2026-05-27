@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { GetServerSideProps } from "next";
 import { getServerSession } from "next-auth/next";
 import { signOut } from "next-auth/react";
@@ -65,26 +65,6 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [stats, setStats] = useState<{
-    recruiters: number;
-    roles: number;
-    candidates: number;
-    completed: number;
-    ongoing: number;
-  } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/stats")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d) setStats(d);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -191,43 +171,6 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
             </div>
           </div>
 
-          {/* Cross-product usage strip */}
-          {stats && (
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3 text-center sm:mt-5 sm:grid-cols-4 sm:gap-4 sm:p-4">
-              <div>
-                <div className="font-mono text-[18px] font-medium tabular-nums text-white sm:text-[22px]">
-                  {stats.recruiters.toLocaleString()}
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/40 sm:text-[11px]">
-                  Recruiters
-                </div>
-              </div>
-              <div>
-                <div className="font-mono text-[18px] font-medium tabular-nums text-white sm:text-[22px]">
-                  {stats.roles.toLocaleString()}
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/40 sm:text-[11px]">
-                  Roles posted
-                </div>
-              </div>
-              <div>
-                <div className="font-mono text-[18px] font-medium tabular-nums text-white sm:text-[22px]">
-                  {stats.candidates.toLocaleString()}
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/40 sm:text-[11px]">
-                  Candidates
-                </div>
-              </div>
-              <div>
-                <div className="font-mono text-[18px] font-medium tabular-nums text-emerald-300 sm:text-[22px]">
-                  {stats.completed.toLocaleString()}
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.14em] text-white/40 sm:text-[11px]">
-                  Interviews complete
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* CREATE INTERVIEW */}
           <form
