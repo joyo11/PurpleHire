@@ -4,7 +4,7 @@ import type { InterviewPlan } from "./jdAnalyzer";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "" });
 
-type Score = { score: number; verdict: string };
+export type ScoreResult = { score: number; verdict: string };
 
 const SYSTEM = `You are an experienced hiring manager evaluating an AI-conducted interview transcript.
 
@@ -20,6 +20,78 @@ Also produce a one-sentence verdict (max 25 words) the recruiter can scan, expla
 
 Return STRICT JSON: { "score": <number 1.0-10.0>, "verdict": "<one sentence>" }`;
 
+type TranscriptMessage = { role: "user" | "assistant"; content: string };
+
+/** Pure scoring — no DB. Reusable by both real interviews and the demo flow. */
+export async function scoreTranscript({
+  roleTitle,
+  jdText,
+  plan,
+  messages,
+  endReason,
+}: {
+  roleTitle: string;
+  jdText: string;
+  plan: InterviewPlan | null;
+  messages: TranscriptMessage[];
+  endReason: string | null;
+}): Promise<ScoreResult | null> {
+  const transcript = messages
+    .map(
+      (m) =>
+        `${m.role === "assistant" ? "Interviewer (PurpleHire)" : "Candidate"}: ${m.content}`,
+    )
+    .join("\n\n");
+
+  const userPrompt = `# Role
+${roleTitle}
+
+# Job description
+${jdText}
+
+${
+  plan
+    ? `# Interview plan the bot followed
+Must-haves: ${plan.must_haves.join(", ") || "(none)"}
+Skills probed: ${plan.skills_to_probe.join(", ") || "(none)"}
+Red flags watched: ${plan.red_flags.join(", ") || "(none)"}
+`
+    : ""
+}
+# Transcript
+${transcript}
+
+# End reason
+${endReason ?? "unknown"}`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: SYSTEM },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  const raw = completion.choices[0]?.message?.content ?? "";
+  try {
+    const obj = JSON.parse(raw) as ScoreResult;
+    if (
+      typeof obj.score === "number" &&
+      obj.score >= 1 &&
+      obj.score <= 10 &&
+      typeof obj.verdict === "string"
+    ) {
+      return obj;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+/** DB-backed scoring used by /api/chat when an interview completes. */
 export async function scoreInterview(conversationId: string): Promise<void> {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -39,67 +111,23 @@ export async function scoreInterview(conversationId: string): Promise<void> {
     plan = null;
   }
 
-  const transcript = conversation.messages
-    .map(
-      (m) =>
-        `${m.role === "assistant" ? "Interviewer (PurpleHire)" : "Candidate"}: ${m.content}`,
-    )
-    .join("\n\n");
-
-  const userPrompt = `# Role
-${role.title}
-
-# Job description
-${role.jdText}
-
-${
-  plan
-    ? `# Interview plan the bot followed
-Must-haves: ${plan.must_haves.join(", ") || "(none)"}
-Skills probed: ${plan.skills_to_probe.join(", ") || "(none)"}
-Red flags watched: ${plan.red_flags.join(", ") || "(none)"}
-`
-    : ""
-}
-# Transcript
-${transcript}
-
-# End reason
-${conversation.endReason ?? "unknown"}`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    temperature: 0.2,
-    messages: [
-      { role: "system", content: SYSTEM },
-      { role: "user", content: userPrompt },
-    ],
+  const result = await scoreTranscript({
+    roleTitle: role.title,
+    jdText: role.jdText,
+    plan,
+    messages: conversation.messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+    endReason: conversation.endReason,
   });
-
-  const raw = completion.choices[0]?.message?.content ?? "";
-  let parsed: Score | null = null;
-  try {
-    const obj = JSON.parse(raw) as Score;
-    if (
-      typeof obj.score === "number" &&
-      obj.score >= 1 &&
-      obj.score <= 10 &&
-      typeof obj.verdict === "string"
-    ) {
-      parsed = obj;
-    }
-  } catch {
-    parsed = null;
-  }
-
-  if (!parsed) return;
+  if (!result) return;
 
   await prisma.candidate.update({
     where: { id: conversation.candidate.id },
     data: {
-      score: parsed.score,
-      verdict: parsed.verdict,
+      score: result.score,
+      verdict: result.verdict,
       scoredAt: new Date(),
     },
   });

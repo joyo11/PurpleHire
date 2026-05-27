@@ -93,7 +93,7 @@ export default function Home() {
                   Sign in to get started
                 </PHButton>
               </Link>
-              <Link href="/signin">
+              <Link href="/demo">
                 <PHButton size="lg" variant="ghost">
                   Try a sample interview
                 </PHButton>
