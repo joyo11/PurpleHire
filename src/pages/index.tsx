@@ -135,37 +135,31 @@ export default function Home() {
               what they&apos;re saying
             </h2>
 
-            <blockquote className="mx-auto mt-8 max-w-[720px] text-[28px] font-medium leading-[1.18] tracking-tight text-white sm:mt-10 sm:text-[40px]">
+            <blockquote className="mx-auto mt-8 max-w-[720px] text-[26px] font-medium leading-[1.18] tracking-tight text-white sm:mt-10 sm:text-[36px]">
               <span aria-hidden className="text-purple-400">&ldquo;</span>
-              We saved a lot of time in our recruitment process.
+              We saved a lot of time in our recruitment process by using
+              PurpleHire.
               <span aria-hidden className="text-purple-400">&rdquo;</span>
             </blockquote>
 
-            <div className="mt-8 flex items-center justify-center gap-3 text-[13px] text-white/65 sm:mt-10 sm:gap-4 sm:text-[14px]">
-              {/* Mojo / Elaichi Co. mark — cardamom illustration on a soft
-                  cream wash, ringed in amber to nod at Elaichi's brand. */}
-              <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-50/95 p-1.5 ring-2 ring-inset ring-amber-500/40 shadow-lg shadow-amber-500/10">
+            <div className="mt-8 flex flex-col items-center gap-3 sm:mt-10">
+              <a
+                href="https://elaichico.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Elaichi Co."
+                className="inline-flex h-14 items-center justify-center rounded-2xl bg-amber-50 px-5 ring-1 ring-amber-500/20 transition-transform hover:-translate-y-0.5"
+              >
                 <img
-                  src="/elaichi-mark.png"
+                  src="/elaichi-logo.svg"
                   alt="Elaichi Co."
-                  className="h-full w-full object-contain"
+                  className="h-7 w-auto sm:h-8"
                 />
-              </span>
-              <div className="text-left">
-                <div className="text-[15px] font-semibold text-white sm:text-[16px]">
-                  Mojo
-                </div>
-                <div className="text-white/55">
-                  Co-founder ·{" "}
-                  <a
-                    href="https://elaichico.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-300 underline-offset-2 hover:underline"
-                  >
-                    Elaichi Co.
-                  </a>
-                </div>
+              </a>
+              <div className="text-[13px] text-white/65 sm:text-[14px]">
+                <span className="font-semibold text-white">Mojo</span>
+                <span className="text-white/40"> · </span>
+                <span className="text-white/55">Co-founder, Elaichi Co.</span>
               </div>
             </div>
           </div>
