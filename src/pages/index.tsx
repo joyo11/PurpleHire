@@ -112,27 +112,45 @@ export default function Home() {
         </section>
 
         {/* TESTIMONIAL */}
-        <section className="border-t border-white/10 px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
-              EARLY USERS
+        <section className="relative overflow-hidden border-t border-white/10 px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+          {/* Subtle purple halo behind the quote */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(50% 60% at 50% 50%, rgba(147,51,234,0.10), rgba(147,51,234,0) 70%)",
+            }}
+          />
+          <div className="relative mx-auto max-w-3xl text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.16em] text-purple-300">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-fm-pulse-dot rounded-full bg-purple-500" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-purple-500" />
+              </span>
+              First customer
             </div>
-            <h2 className="mt-2 text-[22px] font-medium tracking-tight text-white/85 sm:text-[26px]">
+
+            <h2 className="text-[22px] font-medium tracking-tight text-white/85 sm:text-[26px]">
               what they&apos;re saying
             </h2>
 
-            <blockquote className="mx-auto mt-8 max-w-[640px] text-[26px] font-medium leading-[1.25] tracking-tight text-white sm:mt-10 sm:text-[34px]">
+            <blockquote className="mx-auto mt-8 max-w-[720px] text-[28px] font-medium leading-[1.18] tracking-tight text-white sm:mt-10 sm:text-[40px]">
               <span aria-hidden className="text-purple-400">&ldquo;</span>
-              Saved us hours.
+              We saved a lot of time in our recruitment process.
               <span aria-hidden className="text-purple-400">&rdquo;</span>
             </blockquote>
 
-            <div className="mt-7 flex items-center justify-center gap-3 text-[13px] text-white/60 sm:mt-8 sm:text-[14px]">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/30 to-amber-600/30 font-medium text-amber-200 ring-1 ring-inset ring-amber-500/30">
-                E
+            <div className="mt-8 flex items-center justify-center gap-3 text-[13px] text-white/65 sm:mt-10 sm:gap-4 sm:text-[14px]">
+              {/* Mojo avatar — placeholder until the user attaches the image,
+                  then swap to <img src="/elaichi-mojo.png" ... /> */}
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/40 to-amber-700/40 text-[16px] font-semibold text-amber-100 ring-2 ring-inset ring-amber-500/40 shadow-lg shadow-amber-500/10">
+                M
               </span>
               <div className="text-left">
-                <div className="font-medium text-white">Mojo</div>
+                <div className="text-[15px] font-semibold text-white sm:text-[16px]">
+                  Mojo
+                </div>
                 <div className="text-white/55">
                   Co-founder ·{" "}
                   <a
