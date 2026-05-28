@@ -111,6 +111,44 @@ export default function Home() {
           </div>
         </section>
 
+        {/* TESTIMONIAL */}
+        <section className="border-t border-white/10 px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
+              EARLY USERS
+            </div>
+            <h2 className="mt-2 text-[22px] font-medium tracking-tight text-white/85 sm:text-[26px]">
+              what they&apos;re saying
+            </h2>
+
+            <blockquote className="mx-auto mt-8 max-w-[640px] text-[26px] font-medium leading-[1.25] tracking-tight text-white sm:mt-10 sm:text-[34px]">
+              <span aria-hidden className="text-purple-400">&ldquo;</span>
+              Saved us hours.
+              <span aria-hidden className="text-purple-400">&rdquo;</span>
+            </blockquote>
+
+            <div className="mt-7 flex items-center justify-center gap-3 text-[13px] text-white/60 sm:mt-8 sm:text-[14px]">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/30 to-amber-600/30 font-medium text-amber-200 ring-1 ring-inset ring-amber-500/30">
+                E
+              </span>
+              <div className="text-left">
+                <div className="font-medium text-white">Mojo</div>
+                <div className="text-white/55">
+                  Co-founder ·{" "}
+                  <a
+                    href="https://elaichico.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-300 underline-offset-2 hover:underline"
+                  >
+                    Elaichi Co.
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* 3-STEP EXPLAINER */}
         <section className="border-y border-white/10 bg-black/40 px-5 py-14 sm:px-8 sm:py-20 lg:px-12">
           <div className="mx-auto max-w-7xl">
