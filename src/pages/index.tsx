@@ -128,7 +128,7 @@ export default function Home() {
                 <span className="absolute inset-0 animate-fm-pulse-dot rounded-full bg-purple-500" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-purple-500" />
               </span>
-              First customer
+              Our users
             </div>
 
             <h2 className="text-[22px] font-medium tracking-tight text-white/85 sm:text-[26px]">
