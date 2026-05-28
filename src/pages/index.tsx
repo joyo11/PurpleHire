@@ -142,10 +142,14 @@ export default function Home() {
             </blockquote>
 
             <div className="mt-8 flex items-center justify-center gap-3 text-[13px] text-white/65 sm:mt-10 sm:gap-4 sm:text-[14px]">
-              {/* Mojo avatar — placeholder until the user attaches the image,
-                  then swap to <img src="/elaichi-mojo.png" ... /> */}
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/40 to-amber-700/40 text-[16px] font-semibold text-amber-100 ring-2 ring-inset ring-amber-500/40 shadow-lg shadow-amber-500/10">
-                M
+              {/* Mojo / Elaichi Co. mark — cardamom illustration on a soft
+                  cream wash, ringed in amber to nod at Elaichi's brand. */}
+              <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-50/95 p-1.5 ring-2 ring-inset ring-amber-500/40 shadow-lg shadow-amber-500/10">
+                <img
+                  src="/elaichi-mark.png"
+                  alt="Elaichi Co."
+                  className="h-full w-full object-contain"
+                />
               </span>
               <div className="text-left">
                 <div className="text-[15px] font-semibold text-white sm:text-[16px]">
