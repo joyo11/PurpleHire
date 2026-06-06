@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Search,
 } from "@/components/ph";
+import DemoEmailPreview from "@/components/DemoEmailPreview";
 
 type FilterKey = "all" | "completed" | "in_progress";
 type SortKey = "score" | "recency";
@@ -54,6 +55,9 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
   const [sort, setSort] = useState<SortKey>("score");
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
+  const [emailPreviewFor, setEmailPreviewFor] = useState<
+    Pick<DemoCandidate, "name" | "email"> | null
+  >(null);
 
   const completedCount = candidates.filter((c) => c.status === "completed").length;
   const inProgressCount = candidates.filter((c) => c.status === "in_progress").length;
@@ -272,13 +276,17 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
                 </div>
                 <div className="col-span-2 flex justify-end gap-1.5">
                   {c.score !== null && c.score >= PASS_THRESHOLD && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[12px] text-emerald-300"
-                      title="In the real product, this opens your mail client"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEmailPreviewFor({ name: c.name, email: c.email })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[12px] text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                      title="Preview the next-round email"
                     >
                       <MailIcon />
                       Email
-                    </span>
+                    </button>
                   )}
                   <Link
                     href={`/demo/recruiter/${c.id}`}
@@ -347,6 +355,13 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
           </section>
         </section>
       </main>
+
+      <DemoEmailPreview
+        open={emailPreviewFor !== null}
+        onClose={() => setEmailPreviewFor(null)}
+        candidate={emailPreviewFor ?? { name: "", email: "" }}
+        roleTitle={role.title}
+      />
     </>
   );
 }

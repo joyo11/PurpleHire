@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { generateResponse } from "@/services/openaiService";
 import { buildInterviewSystemPrompt } from "@/lib/interviewPrompt";
 import { getSampleRole } from "@/lib/sampleRoles";
+import { inferEndFromText } from "@/lib/inferEndFromText";
 
 /**
  * Ephemeral chat endpoint for the public demo. No DB writes — the
@@ -69,14 +70,21 @@ export default async function handler(
     createdAt: new Date(),
   }));
 
-  const { text, endInterviewReason } = await generateResponse(
-    history,
-    systemPrompt,
-  );
+  const llm = await generateResponse(history, systemPrompt);
+
+  // Safety net: if the LLM wrote an obvious closing line but forgot to
+  // fire the end_interview tool, infer the reason from the candidate's
+  // latest message and end on our side. Mirrors /api/chat behavior so
+  // the demo flow can't leak past a goodbye.
+  let endInterviewReason = llm.endInterviewReason;
+  if (!endInterviewReason && llm.text) {
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    endInterviewReason = inferEndFromText(llm.text, lastUser?.content ?? "");
+  }
 
   return res.status(200).json({
-    message: text
-      ? { role: "assistant", content: text }
+    message: llm.text
+      ? { role: "assistant", content: llm.text }
       : null,
     endInterviewReason,
   });

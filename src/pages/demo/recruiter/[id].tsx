@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useState } from "react";
 import { GetStaticPaths, GetStaticProps } from "next";
 import {
   DEMO_ROLE,
@@ -18,6 +19,7 @@ import {
   Sparkle,
   ChevronLeft,
 } from "@/components/ph";
+import DemoEmailPreview from "@/components/DemoEmailPreview";
 
 type Props = {
   candidate: DemoCandidate;
@@ -101,6 +103,8 @@ export default function DemoTranscript({ candidate, roleTitle, roleSlug }: Props
       ? `Interview complete · ${candidate.endReason ?? "completed"}`
       : "Interview in progress";
 
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
+
   return (
     <>
       <Head>
@@ -181,13 +185,15 @@ export default function DemoTranscript({ candidate, roleTitle, roleSlug }: Props
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
               {candidate.score !== null && candidate.score >= 8.0 && (
-                <span
-                  className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 text-[13px] font-medium text-emerald-300"
-                  title="In the real product, this opens your mail client"
+                <button
+                  type="button"
+                  onClick={() => setEmailPreviewOpen(true)}
+                  className="inline-flex h-9 items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 text-[13px] font-medium text-emerald-300 transition-all hover:-translate-y-px hover:bg-emerald-500/20"
+                  title="Preview the next-round email"
                 >
                   <MailIcon />
                   Send next-round email
-                </span>
+                </button>
               )}
               <PHButton variant="ghost" size="sm" icon={<Download />}>
                 Export
@@ -255,6 +261,13 @@ export default function DemoTranscript({ candidate, roleTitle, roleSlug }: Props
           <p className="sr-only">{roleSlug}</p>
         </section>
       </main>
+
+      <DemoEmailPreview
+        open={emailPreviewOpen}
+        onClose={() => setEmailPreviewOpen(false)}
+        candidate={{ name: candidate.name, email: candidate.email }}
+        roleTitle={roleTitle}
+      />
     </>
   );
 }

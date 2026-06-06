@@ -1,7 +1,10 @@
 /**
- * Build a `mailto:` href that opens the recruiter's mail client with a
- * pre-filled invite-to-next-round message. Recruiter reviews + edits +
- * sends from their own email account — we never see or send anything.
+ * Build the recruiter's next-round invite to a candidate. Used by both
+ * the real recruiter dashboard (mailto: handoff into their mail client)
+ * and the public demo (preview modal that shows the same draft).
+ *
+ * Recruiter reviews and sends from their own email account — we never
+ * see or send anything.
  */
 
 type Input = {
@@ -10,12 +13,18 @@ type Input = {
   recruiterFirstName?: string | null;
 };
 
-export function buildNextRoundMailto({
+export type NextRoundDraft = {
+  subject: string;
+  body: string;
+  mailto: string;
+};
+
+export function buildNextRoundDraft({
   candidate,
   roleTitle,
   recruiterFirstName,
-}: Input): string {
-  const subject = `Next steps — ${roleTitle}`;
+}: Input): NextRoundDraft {
+  const subject = `Next steps, ${roleTitle}`;
   const signer = recruiterFirstName?.trim() || "The hiring team";
   const body = [
     `Hi ${candidate.name.split(" ")[0]},`,
@@ -32,5 +41,12 @@ export function buildNextRoundMailto({
   const params = new URLSearchParams({ subject, body });
   // URLSearchParams uses + for spaces; mail clients prefer %20. Swap it.
   const query = params.toString().replace(/\+/g, "%20");
-  return `mailto:${encodeURIComponent(candidate.email)}?${query}`;
+  const mailto = `mailto:${encodeURIComponent(candidate.email)}?${query}`;
+
+  return { subject, body, mailto };
+}
+
+/** Back-compat alias for the existing callers that only need the mailto URL. */
+export function buildNextRoundMailto(input: Input): string {
+  return buildNextRoundDraft(input).mailto;
 }
