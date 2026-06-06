@@ -11,19 +11,22 @@ const openai = new OpenAI({
 
 function closingFallback(reason: string): string {
   if (reason === "not_interested") {
-    return "Totally understand — thanks for taking the time. Best of luck out there.";
+    return "Totally understand, thanks for taking the time. Best of luck out there.";
+  }
+  if (reason === "reschedule") {
+    return "Totally understand. The interview link stays active, so come back whenever you're ready. I'll be here.";
   }
   if (reason === "off_topic") {
-    return "Looks like this conversation got off track. Wrapping up here — thanks for your time.";
+    return "Looks like this conversation got off track. Wrapping up here, thanks for your time.";
   }
   if (reason === "unclear_communication") {
-    return "Looks like the connection isn't quite working — wrapping up here. Feel free to try again anytime.";
+    return "Looks like the connection isn't quite working, wrapping up here. Feel free to try again anytime.";
   }
   if (reason === "missing_must_have") {
     return "Thanks for being upfront. This particular role might not be the right fit, but I appreciate the chat.";
   }
   if (reason.startsWith("red_flag_")) {
-    return "Thanks for the conversation. Wrapping up here — the recruiter will be in touch if there's a next step.";
+    return "Thanks for the conversation. Wrapping up here, the recruiter will be in touch if there's a next step.";
   }
   return "Thanks for the chat. The recruiter will review and follow up. Have a great day.";
 }

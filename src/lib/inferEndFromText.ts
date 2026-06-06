@@ -18,6 +18,19 @@ export function inferEndFromText(
   const b = botText.toLowerCase();
   const u = userText.toLowerCase();
 
+  // Reschedule signals from the bot's closing or the candidate's message.
+  // Checked BEFORE the generic wrap-phrase logic because "link stays active"
+  // and "come back whenever" also overlap with generic wrap language.
+  const botSaidReschedule =
+    /(link stays active|come back whenever|come back when you'?re ready|whenever you'?re ready|i'?ll be here)/.test(b);
+  const userAskedReschedule =
+    /(another time|reschedule|come back to this|need a break|is now a bad time|i'?m tired|right now isn'?t|do this later|do this another)/.test(u);
+  if (botSaidReschedule || userAskedReschedule) {
+    if (/totally understand|no worries|sounds good|absolutely/.test(b)) {
+      return "reschedule";
+    }
+  }
+
   const wrapPhrase =
     /(wrap up|wrapping up|i'?ll end here|best of luck out there|wishing you the best|wrap things up|so i'?ll wrap|let'?s wrap)/.test(b) ||
     /(really enjoyed (our|the) chat|enjoyed (our|the) (chat|conversation))/.test(b) ||
@@ -29,7 +42,10 @@ export function inferEndFromText(
 
   if (!wrapPhrase) return undefined;
 
-  if (/not interested|don'?t want|changed my mind|isn'?t for me|lol no/.test(u)) {
+  // Only treat as not_interested if the candidate said something *explicit*.
+  // Soft signals like "tired" or "another time" route to reschedule above,
+  // so they won't reach this branch.
+  if (/\b(not interested|don'?t want this|changed my mind|isn'?t for me|lol no|no thanks)\b/.test(u)) {
     return "not_interested";
   }
   if (
