@@ -54,25 +54,38 @@ function PlanBadge({
   used: number;
   limit: number | null;
 }) {
+  const [opening, setOpening] = useState(false);
   if (plan === "pro") {
     return (
-      <Link
-        href="/api/billing/portal"
-        onClick={async (e) => {
-          e.preventDefault();
-          const res = await fetch("/api/billing/portal", { method: "POST" });
-          const data = await res.json();
-          if (res.ok && data.url) window.location.href = data.url;
+      <button
+        type="button"
+        onClick={async () => {
+          if (opening) return;
+          setOpening(true);
+          try {
+            const res = await fetch("/api/billing/portal", { method: "POST" });
+            const data = await res.json();
+            if (res.ok && data.url) {
+              window.location.href = data.url;
+            } else {
+              setOpening(false);
+            }
+          } catch {
+            setOpening(false);
+          }
         }}
-        className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 px-3 py-1 text-[11px] font-medium text-purple-300 ring-1 ring-inset ring-purple-500/30 transition-colors hover:bg-purple-500/20"
+        className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 px-3 py-1 text-[11px] font-medium text-purple-300 ring-1 ring-inset ring-purple-500/30 transition-colors hover:bg-purple-500/20 disabled:opacity-60"
+        disabled={opening}
       >
         <span className="ph-grad-text font-mono">Pro</span>
-        <span className="text-white/55">Manage billing</span>
-      </Link>
+        <span className="text-white/55">
+          {opening ? "Opening…" : "Manage billing"}
+        </span>
+      </button>
     );
   }
-  const remaining = limit === null ? null : Math.max(0, limit - used);
-  const atLimit = remaining === 0;
+  const safeLimit = typeof limit === "number" ? limit : 10;
+  const atLimit = used >= safeLimit;
   return (
     <Link
       href="/pricing"
@@ -84,7 +97,7 @@ function PlanBadge({
     >
       <span className="font-mono">Free</span>
       <span className="text-white/45">
-        {used} of {limit} interviews this month
+        {used} of {safeLimit} this month
       </span>
       <span className="text-purple-300">Upgrade →</span>
     </Link>
