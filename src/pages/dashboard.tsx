@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth/next";
 import { signOut } from "next-auth/react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkInterviewQuota } from "@/lib/limits";
 import {
   PHTopBar,
   PHButton,
@@ -32,6 +33,9 @@ type Props = {
   user: { name: string | null; email: string | null; image: string | null };
   baseUrl: string;
   initialRoles: RoleSummary[];
+  plan: "free" | "pro";
+  monthlyInterviews: number;
+  monthlyLimit: number | null;
 };
 
 function formatShortDate(iso: string) {
@@ -39,6 +43,52 @@ function formatShortDate(iso: string) {
     month: "short",
     day: "2-digit",
   });
+}
+
+function PlanBadge({
+  plan,
+  used,
+  limit,
+}: {
+  plan: "free" | "pro";
+  used: number;
+  limit: number | null;
+}) {
+  if (plan === "pro") {
+    return (
+      <Link
+        href="/api/billing/portal"
+        onClick={async (e) => {
+          e.preventDefault();
+          const res = await fetch("/api/billing/portal", { method: "POST" });
+          const data = await res.json();
+          if (res.ok && data.url) window.location.href = data.url;
+        }}
+        className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 px-3 py-1 text-[11px] font-medium text-purple-300 ring-1 ring-inset ring-purple-500/30 transition-colors hover:bg-purple-500/20"
+      >
+        <span className="ph-grad-text font-mono">Pro</span>
+        <span className="text-white/55">Manage billing</span>
+      </Link>
+    );
+  }
+  const remaining = limit === null ? null : Math.max(0, limit - used);
+  const atLimit = remaining === 0;
+  return (
+    <Link
+      href="/pricing"
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+        atLimit
+          ? "border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/15"
+          : "border-white/15 bg-white/[0.02] text-white/75 hover:bg-white/5"
+      }`}
+    >
+      <span className="font-mono">Free</span>
+      <span className="text-white/45">
+        {used} of {limit} interviews this month
+      </span>
+      <span className="text-purple-300">Upgrade →</span>
+    </Link>
+  );
 }
 
 function TrashIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -57,7 +107,14 @@ function TrashIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
-export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
+export default function Dashboard({
+  user,
+  baseUrl,
+  initialRoles,
+  plan,
+  monthlyInterviews,
+  monthlyLimit,
+}: Props) {
   const [roles, setRoles] = useState<RoleSummary[]>(initialRoles);
   const [title, setTitle] = useState("");
   const [jdText, setJdText] = useState("");
@@ -164,10 +221,17 @@ export default function Dashboard({ user, baseUrl, initialRoles }: Props) {
                 {firstName ? `, ${firstName}` : ""}.
               </h1>
             </div>
-            <div className="text-[12px] text-white/45 sm:text-[13px]">
-              {roles.length === 0
-                ? "0 interviews ongoing"
-                : `${roles.length} role${roles.length === 1 ? "" : "s"} · ${doneCount} completed · ${liveCount} ongoing`}
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <PlanBadge
+                plan={plan}
+                used={monthlyInterviews}
+                limit={monthlyLimit}
+              />
+              <div className="text-[12px] text-white/45 sm:text-[13px]">
+                {roles.length === 0
+                  ? "0 interviews ongoing"
+                  : `${roles.length} role${roles.length === 1 ? "" : "s"} · ${doneCount} completed · ${liveCount} ongoing`}
+              </div>
             </div>
           </div>
 
@@ -517,6 +581,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     },
   });
 
+  const gate = await checkInterviewQuota({ recruiterId: userId });
+
   const host = ctx.req.headers.host ?? "localhost:3000";
   const protocol = host.startsWith("localhost") ? "http" : "https";
 
@@ -538,6 +604,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
           (c) => c.conversations[0]?.status === "completed",
         ).length,
       })),
+      plan: gate.plan,
+      monthlyInterviews: gate.monthlyInterviews,
+      monthlyLimit: gate.monthlyLimit,
     },
   };
 };

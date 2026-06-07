@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
+import { checkInterviewQuota } from "@/lib/limits";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -30,11 +31,25 @@ export default async function handler(
 
   const role = await prisma.role.findUnique({
     where: { slug },
-    select: { id: true, title: true },
+    select: { id: true, title: true, recruiterId: true },
   });
 
   if (!role) {
     return res.status(404).json({ error: "Interview link not found." });
+  }
+
+  // Free-plan quota gate. We block a NEW interview from starting if the
+  // recruiter is on the free plan and has used all 10 of their monthly
+  // completed interviews. In-progress interviews are unaffected.
+  const gate = await checkInterviewQuota({ recruiterId: role.recruiterId });
+  if (!gate.allowed) {
+    return res.status(402).json({
+      error: gate.reason ?? "Quota exceeded.",
+      code: "free_plan_limit",
+      plan: gate.plan,
+      monthlyInterviews: gate.monthlyInterviews,
+      monthlyLimit: gate.monthlyLimit,
+    });
   }
 
   const candidate = await prisma.candidate.create({
