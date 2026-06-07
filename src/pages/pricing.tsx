@@ -5,7 +5,7 @@ import { GetServerSideProps } from "next";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isProActive, FREE_PLAN_MONTHLY_INTERVIEWS } from "@/lib/stripe";
+import { isProActive, FREE_PLAN_MONTHLY_INTERVIEWS } from "@/lib/plan";
 import {
   PHLogo,
   PHButton,

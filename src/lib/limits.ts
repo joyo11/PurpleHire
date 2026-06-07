@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { FREE_PLAN_MONTHLY_INTERVIEWS, isProActive } from "./stripe";
+import { FREE_PLAN_MONTHLY_INTERVIEWS, isProActive } from "./plan";
 
 export type UsageGate = {
   plan: "free" | "pro";
