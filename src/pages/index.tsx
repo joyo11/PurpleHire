@@ -44,6 +44,12 @@ export default function Home() {
           <PHLogo size="md" />
           <nav className="flex items-center gap-2 text-[14px] text-white/70 sm:gap-6">
             <Link
+              href="/pricing"
+              className="hidden text-white/85 transition-colors hover:text-white sm:inline-block"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/signin"
               className="hidden text-white/85 transition-colors hover:text-white sm:inline-block"
             >
@@ -111,9 +117,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* TESTIMONIAL */}
-        <section className="relative overflow-hidden border-t border-white/10 px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
-          {/* Subtle purple halo behind the quote */}
+        {/* PRICING */}
+        <section className="relative overflow-hidden border-t border-white/10 px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0"
@@ -122,46 +127,112 @@ export default function Home() {
                 "radial-gradient(50% 60% at 50% 50%, rgba(147,51,234,0.10), rgba(147,51,234,0) 70%)",
             }}
           />
-          <div className="relative mx-auto max-w-3xl text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.16em] text-purple-300">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inset-0 animate-fm-pulse-dot rounded-full bg-purple-500" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-purple-500" />
-              </span>
-              Our users
+          <div className="relative mx-auto max-w-5xl">
+            <div className="text-center">
+              <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
+                PRICING
+              </div>
+              <h2 className="mt-2 text-[28px] font-medium tracking-tight sm:text-[36px]">
+                Free until you outgrow it.
+              </h2>
+              <p className="mx-auto mt-3 max-w-[520px] text-[14.5px] text-white/60 sm:text-[15.5px]">
+                10 free completed interviews a month. Upgrade to Pro for
+                unlimited. Cancel any time.
+              </p>
             </div>
 
-            <h2 className="text-[22px] font-medium tracking-tight text-white/85 sm:text-[26px]">
-              what they&apos;re saying
-            </h2>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
+              {/* FREE */}
+              <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-7">
+                <div className="flex items-baseline justify-between">
+                  <div className="text-[16px] font-medium tracking-tight">
+                    Free
+                  </div>
+                  <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/60">
+                    Start here
+                  </span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="font-mono text-[34px] font-medium tabular-nums sm:text-[40px]">
+                    $0
+                  </span>
+                  <span className="text-[13px] text-white/45">/month</span>
+                </div>
+                <ul className="mt-5 space-y-2 text-[13.5px] text-white/85">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-emerald-300" />
+                    <span>
+                      <strong>10 completed interviews</strong> per month
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-emerald-300" />
+                    Unlimited roles
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-emerald-300" />
+                    Full transcripts and AI scoring
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-emerald-300" />
+                    Email candidates from your own Gmail
+                  </li>
+                </ul>
+                <Link href="/signin" className="mt-6 block">
+                  <PHButton variant="ghost" className="w-full">
+                    Start free
+                  </PHButton>
+                </Link>
+              </div>
 
-            <blockquote className="mx-auto mt-8 max-w-[720px] text-[26px] font-medium leading-[1.18] tracking-tight text-white sm:mt-10 sm:text-[36px]">
-              <span aria-hidden className="text-purple-400">&ldquo;</span>
-              We saved a lot of time in our recruitment process by using
-              PurpleHire.
-              <span aria-hidden className="text-purple-400">&rdquo;</span>
-            </blockquote>
-
-            <div className="mt-8 flex flex-col items-center gap-3 sm:mt-10">
-              <a
-                href="https://elaichico.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Elaichi Co."
-                className="inline-flex h-14 items-center justify-center rounded-2xl bg-amber-50 px-5 ring-1 ring-amber-500/20 transition-transform hover:-translate-y-0.5"
-              >
-                <img
-                  src="/elaichi-logo.svg"
-                  alt="Elaichi Co."
-                  className="h-7 w-auto sm:h-8"
-                />
-              </a>
-              <div className="text-[13px] text-white/65 sm:text-[14px]">
-                <span className="font-semibold text-white">Mojo</span>
-                <span className="text-white/40"> · </span>
-                <span className="text-white/55">Co-founder, Elaichi Co.</span>
+              {/* PRO */}
+              <div className="relative overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-500/[0.10] to-white/[0.01] p-6 shadow-glow-purple-sm sm:p-7">
+                <div className="flex items-baseline justify-between">
+                  <div className="text-[16px] font-medium tracking-tight">
+                    Pro
+                  </div>
+                  <span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] uppercase tracking-wide text-purple-300 ring-1 ring-inset ring-purple-500/30">
+                    Recommended
+                  </span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="ph-grad-text font-mono text-[34px] font-medium tabular-nums sm:text-[40px]">
+                    $20
+                  </span>
+                  <span className="text-[13px] text-white/55">/month</span>
+                </div>
+                <ul className="mt-5 space-y-2 text-[13.5px] text-white/85">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-purple-300" />
+                    <span>
+                      <strong>Unlimited interviews</strong> every month
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-purple-300" />
+                    Everything in Free
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-purple-300" />
+                    Priority on the upcoming voice-mode launch
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-purple-300" />
+                    Cancel any time from the customer portal
+                  </li>
+                </ul>
+                <Link href="/pricing" className="mt-6 block">
+                  <PHButton iconRight={<ArrowRight />} className="w-full">
+                    Upgrade to Pro
+                  </PHButton>
+                </Link>
               </div>
             </div>
+
+            <p className="mt-8 text-center text-[12px] text-white/40">
+              Prices in USD. Powered by Stripe. We never store your card
+              details.
+            </p>
           </div>
         </section>
 
