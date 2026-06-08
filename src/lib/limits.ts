@@ -46,6 +46,7 @@ export async function checkInterviewQuota(args: {
   const user = await prisma.user.findUnique({
     where: { id: args.recruiterId },
     select: {
+      email: true,
       plan: true,
       subscriptionStatus: true,
       subscriptionCurrentPeriodEnd: true,
@@ -66,6 +67,7 @@ export async function checkInterviewQuota(args: {
     plan: user.plan,
     subscriptionStatus: user.subscriptionStatus,
     subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd,
+    email: user.email,
   });
 
   if (isPro) {

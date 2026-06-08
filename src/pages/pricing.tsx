@@ -245,6 +245,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     const u = await prisma.user.findUnique({
       where: { id: userId },
       select: {
+        email: true,
         plan: true,
         subscriptionStatus: true,
         subscriptionCurrentPeriodEnd: true,
@@ -256,6 +257,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         plan: u.plan,
         subscriptionStatus: u.subscriptionStatus,
         subscriptionCurrentPeriodEnd: u.subscriptionCurrentPeriodEnd,
+        email: u.email,
       })
     ) {
       plan = "pro";
