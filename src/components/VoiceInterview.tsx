@@ -75,7 +75,9 @@ export default function VoiceInterview({
       return;
     }
     const rec = new SR();
-    rec.continuous = false;
+    // continuous=true so natural pauses ("I don't have... ", thinking)
+    // don't auto-end recognition. We end it manually on key/mic release.
+    rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-US";
 
@@ -143,6 +145,41 @@ export default function VoiceInterview({
     void requestInitialGreeting();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unsupported]);
+
+  // ── Hold-P-to-talk: keyboard push-to-talk ──────────────────────────
+  // Hold P → mic opens. Release P → mic closes + utterance submits.
+  // Ignored when an input/textarea is focused (defensive — current page
+  // has none, but future settings panels might).
+  useEffect(() => {
+    if (unsupported) return;
+    const isTypingTarget = (t: EventTarget | null): boolean => {
+      if (!(t instanceof HTMLElement)) return false;
+      const tag = t.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable;
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;  // ignore auto-repeat while held
+      if (e.key !== "p" && e.key !== "P") return;
+      if (isTypingTarget(e.target)) return;
+      e.preventDefault();
+      // Don't start a new session if already listening or thinking.
+      if (phase === "listening" || phase === "thinking") return;
+      startListening();
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== "p" && e.key !== "P") return;
+      if (isTypingTarget(e.target)) return;
+      e.preventDefault();
+      stopListening();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unsupported, phase]);
 
   // /api/chat returns { messages: [...], status, endInterviewReason }.
   // For voice we want only the LAST assistant message to speak.
@@ -422,9 +459,17 @@ export default function VoiceInterview({
               {phase === "listening"
                 ? "Listening... release to send"
                 : phase === "ai-speaking"
-                  ? "Tap mic to interrupt and respond"
+                  ? "Hold P or tap mic to interrupt and respond"
                   : phase === "ready"
-                    ? "Hold mic to speak"
+                    ? (
+                      <>
+                        Hold{" "}
+                        <kbd className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-white/80">
+                          P
+                        </kbd>{" "}
+                        or click the mic to speak
+                      </>
+                    )
                     : phase === "done"
                       ? "Interview complete. Thanks for chatting."
                       : "Connecting..."}
