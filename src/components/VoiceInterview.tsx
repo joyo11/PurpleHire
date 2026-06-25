@@ -117,6 +117,23 @@ export default function VoiceInterview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unsupported]);
 
+  // /api/chat returns { messages: [...], status, endInterviewReason }.
+  // For voice we want only the LAST assistant message to speak.
+  type ChatApiResponse = {
+    messages?: Array<{ role: string; content: string }>;
+    status?: "in_progress" | "completed";
+    endInterviewReason?: string | null;
+    error?: string;
+  };
+
+  function lastAssistantText(data: ChatApiResponse): string {
+    const msgs = data.messages ?? [];
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === "assistant") return msgs[i].content ?? "";
+    }
+    return "";
+  }
+
   async function requestInitialGreeting() {
     try {
       setPhase("thinking");
@@ -125,9 +142,10 @@ export default function VoiceInterview({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId, isInitial: true }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as ChatApiResponse;
       if (!res.ok) throw new Error(data?.error ?? "Could not start interview.");
-      pushAndSpeak(data.message ?? "Hi there. Let's get started.");
+      const greeting = lastAssistantText(data) || "Hi there. Let's get started.";
+      pushAndSpeak(greeting);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start.");
       setPhase("ready");
@@ -148,15 +166,17 @@ export default function VoiceInterview({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId, message: text }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as ChatApiResponse;
       if (!res.ok) throw new Error(data?.error ?? "Server error.");
-      if (data.ended) {
-        pushAndSpeak(data.message ?? "Thanks for chatting. We'll be in touch.");
-        // After AI finishes speaking, mark done (handled in onend handler).
+      const reply = lastAssistantText(data);
+      const ended = data.status === "completed";
+      if (ended) {
+        pushAndSpeak(reply || "Thanks for chatting. We'll be in touch.");
+        // When AI finishes speaking the close, mark done.
         utteranceRef.current?.addEventListener("end", () => setPhase("done"));
         return;
       }
-      pushAndSpeak(data.message ?? "");
+      pushAndSpeak(reply);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Network error.");
       setPhase("ready");
