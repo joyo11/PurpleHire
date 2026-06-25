@@ -55,6 +55,11 @@ export default function VoiceInterview({
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Buffer all final transcripts during one mic session; submit ONCE on
+  // release. Chrome's SpeechRecognition can fire multiple "isFinal"
+  // events for one utterance (one per natural pause), which without
+  // buffering produced 3 separate API calls for "hello how are you".
+  const accumulatedRef = useRef<string>("");
 
   // ── Browser support gate ────────────────────────────────────────────
   useEffect(() => {
@@ -69,18 +74,22 @@ export default function VoiceInterview({
     rec.lang = "en-US";
 
     rec.onresult = (ev: SpeechRecognitionEvent) => {
-      let finalText = "";
+      // BUFFER finals into accumulatedRef; only submit on rec.onend so a
+      // single sentence like "hello how are you" produces ONE API call,
+      // not three.
       let interim = "";
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const transcript = ev.results[i][0].transcript;
-        if (ev.results[i].isFinal) finalText += transcript;
-        else interim += transcript;
+        if (ev.results[i].isFinal) {
+          accumulatedRef.current = (accumulatedRef.current + " " + transcript).trim();
+        } else {
+          interim += transcript;
+        }
       }
-      if (interim) setInterimText(interim);
-      if (finalText) {
-        setInterimText("");
-        void submitUserUtterance(finalText.trim());
-      }
+      // Show running transcript: buffered finals + current interim.
+      setInterimText(
+        (accumulatedRef.current + " " + interim).trim(),
+      );
     };
 
     rec.onerror = (ev: SpeechRecognitionErrorEvent) => {
@@ -92,13 +101,20 @@ export default function VoiceInterview({
             : `Mic error: ${ev.error}`,
         );
       }
-      setPhase("ready");
     };
 
     rec.onend = () => {
-      // If the recognition stops while we're still listening (silence
-      // timeout) and we have no finalText to submit, fall back to ready.
-      setPhase((p) => (p === "listening" ? "ready" : p));
+      // Single point of submission: take the buffered transcript and fire
+      // one API call. This fixes the multi-bubble bug from Chrome firing
+      // multiple isFinal results within one utterance.
+      const buffered = accumulatedRef.current.trim();
+      accumulatedRef.current = "";
+      setInterimText("");
+      if (buffered) {
+        void submitUserUtterance(buffered);
+      } else {
+        setPhase((p) => (p === "listening" ? "ready" : p));
+      }
     };
 
     recognitionRef.current = rec;
@@ -221,6 +237,7 @@ export default function VoiceInterview({
   function startListening() {
     if (!recognitionRef.current) return;
     setError(null);
+    accumulatedRef.current = "";  // fresh buffer per mic session
     // If the AI is mid-sentence and the candidate wants to interrupt, cut it.
     if (phase === "ai-speaking") window.speechSynthesis.cancel();
     try {
