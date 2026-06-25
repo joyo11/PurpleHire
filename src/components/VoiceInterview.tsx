@@ -19,6 +19,10 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  // For assistant messages during voice playback: how many characters
+  // are revealed so far (rAF-driven typewriter synced to audio.currentTime).
+  // null = render the full content (used for user messages + finished AI).
+  revealedChars: number | null;
 };
 
 type Phase =
@@ -180,7 +184,7 @@ export default function VoiceInterview({
     // Optimistically render the user's turn.
     setMessages((prev) => [
       ...prev,
-      { id: `u-${Date.now()}`, role: "user", content: text },
+      { id: `u-${Date.now()}`, role: "user", content: text, revealedChars: null },
     ]);
     setPhase("thinking");
     try {
@@ -251,9 +255,18 @@ export default function VoiceInterview({
         }, 1500);
       });
 
+      // Stable id so the rAF loop below can find this message to update.
+      const messageId = `a-${Date.now()}`;
+
       audio.onended = () => {
         URL.revokeObjectURL(url);
         if (audioRef.current === audio) audioRef.current = null;
+        // Snap to full text on end (in case rAF undershot the last few chars).
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, revealedChars: null } : m,
+          ),
+        );
         setPhase((p) => (p === "done" ? "done" : "ready"));
       };
       audio.onerror = () => {
@@ -262,20 +275,49 @@ export default function VoiceInterview({
         setPhase("ready");
       };
 
-      // Render the bubble + start playback in the same render pass.
+      // Render the bubble (empty so far) + start playback in the same render
+      // pass. The rAF loop below progressively reveals chars in sync with
+      // audio.currentTime, producing a typewriter effect that PACES with
+      // the actual spoken voice.
       setMessages((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: "assistant", content: text },
+        { id: messageId, role: "assistant", content: text, revealedChars: 0 },
       ]);
       setPhase("ai-speaking");
       await audio.play();
+
+      // Typewriter: char-level reveal driven by audio.currentTime.
+      // We bias the reveal slightly AHEAD of the audio (factor 1.05) so
+      // the eye doesn't lag the ear — readers process print faster than
+      // they process speech, so a tiny lead feels naturally synced.
+      const LEAD_FACTOR = 1.05;
+      const tick = () => {
+        if (audio.paused || audio.ended) return;
+        const dur = audio.duration;
+        if (!isFinite(dur) || dur <= 0) {
+          requestAnimationFrame(tick);
+          return;
+        }
+        const ratio = Math.min(1, (audio.currentTime / dur) * LEAD_FACTOR);
+        const target = Math.floor(text.length * ratio);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId && m.revealedChars !== null && m.revealedChars < target
+              ? { ...m, revealedChars: target }
+              : m,
+          ),
+        );
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
     } catch (err) {
       console.warn("[voice] TTS failed, using browser fallback:", err);
       // TTS failed — still show text + use browser synth so the interview
-      // completes. Robotic but better than silence.
+      // completes. Robotic but better than silence. No typewriter in
+      // fallback (we don't know the audio duration ahead of time).
       setMessages((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: "assistant", content: text },
+        { id: `a-${Date.now()}`, role: "assistant", content: text, revealedChars: null },
       ]);
       setPhase("ai-speaking");
       const utter = new SpeechSynthesisUtterance(text);
@@ -345,11 +387,22 @@ export default function VoiceInterview({
                 Connecting{candidateName ? `, ${candidateName}` : ""}...
               </p>
             )}
-            {messages.map((m) => (
-              <PHMessage key={m.id} from={m.role === "user" ? "candidate" : "bot"}>
-                {m.content}
-              </PHMessage>
-            ))}
+            {messages.map((m) => {
+              // Typewriter: while voice is playing, the assistant message
+              // shows only the portion of the content the rAF loop has
+              // revealed so far (synced to audio.currentTime). When the
+              // audio ends, revealedChars is reset to null and the full
+              // content renders.
+              const display =
+                m.revealedChars !== null && m.role === "assistant"
+                  ? m.content.slice(0, m.revealedChars)
+                  : m.content;
+              return (
+                <PHMessage key={m.id} from={m.role === "user" ? "candidate" : "bot"}>
+                  {display}
+                </PHMessage>
+              );
+            })}
             {interimText && (
               <p className="text-right text-sm italic text-white/40">
                 {interimText}
