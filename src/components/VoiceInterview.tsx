@@ -54,7 +54,9 @@ export default function VoiceInterview({
   const [unsupported, setUnsupported] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Audio element for OpenAI TTS playback (voice "nova"). Replaces the
+  // robotic browser SpeechSynthesis. Single element reused across turns.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   // Buffer all final transcripts during one mic session; submit ONCE on
   // release. Chrome's SpeechRecognition can fire multiple "isFinal"
   // events for one utterance (one per natural pause), which without
@@ -121,7 +123,12 @@ export default function VoiceInterview({
 
     return () => {
       try { rec.stop(); } catch { /* no-op */ }
-      try { window.speechSynthesis.cancel(); } catch { /* no-op */ }
+      // Stop and tear down any in-flight TTS playback.
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+        audioRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -187,9 +194,10 @@ export default function VoiceInterview({
       const reply = lastAssistantText(data);
       const ended = data.status === "completed";
       if (ended) {
-        pushAndSpeak(reply || "Thanks for chatting. We'll be in touch.");
-        // When AI finishes speaking the close, mark done.
-        utteranceRef.current?.addEventListener("end", () => setPhase("done"));
+        // pushAndSpeak fires the audio; we just preemptively mark "done"
+        // so when the close line finishes, the StatusPill stays at "done".
+        await pushAndSpeak(reply || "Thanks for chatting. We'll be in touch.");
+        setPhase("done");
         return;
       }
       pushAndSpeak(reply);
@@ -199,39 +207,58 @@ export default function VoiceInterview({
     }
   }
 
-  function pushAndSpeak(text: string) {
+  async function pushAndSpeak(text: string) {
     if (!text) {
       setPhase("ready");
       return;
     }
+    // Render the AI bubble immediately so the candidate sees it before
+    // playback starts (~500-900ms TTS latency).
     setMessages((prev) => [
       ...prev,
       { id: `a-${Date.now()}`, role: "assistant", content: text },
     ]);
     setPhase("ai-speaking");
 
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.0;
-    utter.pitch = 1.0;
-    // Prefer a natural-sounding English voice if available.
-    const voices = window.speechSynthesis.getVoices();
-    const preferred =
-      voices.find((v) => v.name.includes("Samantha")) ??
-      voices.find((v) => v.lang.startsWith("en")) ??
-      voices[0];
-    if (preferred) utter.voice = preferred;
+    // Tear down any previous audio so we don't double-speak.
+    if (audioRef.current) {
+      audioRef.current.pause();
+      URL.revokeObjectURL(audioRef.current.src);
+      audioRef.current = null;
+    }
 
-    utter.onend = () => {
-      utteranceRef.current = null;
-      setPhase((p) => (p === "done" ? "done" : "ready"));
-    };
-    utter.onerror = () => {
-      utteranceRef.current = null;
-      setPhase("ready");
-    };
-
-    utteranceRef.current = utter;
-    window.speechSynthesis.speak(utter);
+    try {
+      const res = await fetch("/api/voice/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: "nova" }),
+      });
+      if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        if (audioRef.current === audio) audioRef.current = null;
+        setPhase((p) => (p === "done" ? "done" : "ready"));
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        if (audioRef.current === audio) audioRef.current = null;
+        setPhase("ready");
+      };
+      await audio.play();
+    } catch (err) {
+      // TTS failed (network / OpenAI down / etc) — fall back to browser
+      // synthesis so the interview still completes. Robotic but better
+      // than silence.
+      console.warn("[voice] TTS failed, using browser fallback:", err);
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.onend = () => setPhase((p) => (p === "done" ? "done" : "ready"));
+      utter.onerror = () => setPhase("ready");
+      window.speechSynthesis.speak(utter);
+    }
   }
 
   function startListening() {
@@ -239,7 +266,14 @@ export default function VoiceInterview({
     setError(null);
     accumulatedRef.current = "";  // fresh buffer per mic session
     // If the AI is mid-sentence and the candidate wants to interrupt, cut it.
-    if (phase === "ai-speaking") window.speechSynthesis.cancel();
+    if (phase === "ai-speaking") {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+        audioRef.current = null;
+      }
+      try { window.speechSynthesis.cancel(); } catch { /* no-op */ }
+    }
     try {
       recognitionRef.current.start();
       setPhase("listening");
