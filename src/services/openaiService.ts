@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 import { Message } from "@/types/chat";
-import {
+// OpenAI SDK v4 moduleResolution=bundler quirk: the legacy
+// "openai/resources/chat" subpath isn't in package.json exports, so we
+// import from the explicit completions subpath that IS exported.
+import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
-} from "openai/resources/chat";
+} from "openai/resources/chat/completions";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY ?? "",

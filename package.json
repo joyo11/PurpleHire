@@ -15,8 +15,8 @@
   },
   "devDependencies": {
     "@types/eslint": "^8.44.2",
-    "@types/node": "^18.19.75",
-    "@types/react": "^18.3.18",
+    "@types/node": "18.19.130",
+    "@types/react": "18.3.31",
     "@types/react-dom": "^18.3.5",
     "@typescript-eslint/eslint-plugin": "^6.3.0",
     "@typescript-eslint/parser": "^6.3.0",
@@ -28,7 +28,7 @@
     "prettier-plugin-tailwindcss": "^0.5.1",
     "prisma": "^6.3.1",
     "tailwindcss": "^3.3.3",
-    "typescript": "^5.7.3"
+    "typescript": "5.9.3"
   },
   "scripts": {
     "prisma:generate:sqlite": "prisma generate --schema prisma/schema.sqlite.prisma",

@@ -32,6 +32,7 @@ type CandidateRow = {
   verdict: string | null;
   status: "in_progress" | "completed" | "no_conversation";
   endReason: string | null;
+  mode: "chat" | "voice";
 };
 
 type Props = {
@@ -336,8 +337,9 @@ export default function RoleDetail({
                     <div className="col-span-3 flex items-center gap-3">
                       <PHAvatar letter={firstInitial(c.name)} size="md" />
                       <div className="min-w-0">
-                        <div className="truncate text-[14.5px] font-medium text-white">
+                        <div className="flex items-center gap-1.5 truncate text-[14.5px] font-medium text-white">
                           {c.name}
+                          {c.mode === "voice" && <VoiceBadge />}
                         </div>
                         <div className="truncate text-[12px] text-white/45">
                           {c.email}
@@ -416,8 +418,9 @@ export default function RoleDetail({
                       >
                         <PHAvatar letter={firstInitial(c.name)} />
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-[14px] font-medium">
+                          <div className="flex items-center gap-1.5 truncate text-[14px] font-medium">
                             {c.name}
+                            {c.mode === "voice" && <VoiceBadge />}
                           </div>
                           <div className="truncate text-[11px] text-white/45">
                             {c.email}
@@ -504,6 +507,20 @@ export default function RoleDetail({
   );
 }
 
+function VoiceBadge() {
+  return (
+    <span
+      title="Voice interview"
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-purple-500/20 text-purple-200"
+      aria-label="Voice interview"
+    >
+      <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 fill-current" aria-hidden="true">
+        <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+      </svg>
+    </span>
+  );
+}
+
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res, authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -523,7 +540,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
           conversations: {
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: { status: true, endReason: true },
+            select: { status: true, endReason: true, mode: true },
           },
         },
       },
@@ -567,6 +584,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
           verdict: c.verdict,
           status,
           endReason: conv?.endReason ?? null,
+          mode: conv?.mode === "voice" ? "voice" as const : "chat" as const,
         };
       }),
     },

@@ -14,6 +14,9 @@ model Conversation {
   updatedAt   DateTime   @updatedAt
   status      String     @default("in_progress")
   endReason   String?
+  // "chat" (default) or "voice" — set at /api/interviews/start, used to
+  // render the right candidate UI and show a 🎤 badge in recruiter inbox.
+  mode        String     @default("chat")
   metadata    String
   messages    Message[]
   candidateId String?

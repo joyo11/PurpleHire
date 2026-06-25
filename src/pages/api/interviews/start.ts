@@ -13,10 +13,11 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { slug, name, email } = req.body as {
+  const { slug, name, email, mode } = req.body as {
     slug?: string;
     name?: string;
     email?: string;
+    mode?: string;
   };
 
   if (!slug || !name?.trim() || !email?.trim()) {
@@ -24,6 +25,10 @@ export default async function handler(
       .status(400)
       .json({ error: "Missing slug, name, or email." });
   }
+
+  // Mode is "chat" (default) or "voice". Anything else is normalized to
+  // "chat" so a bad client payload can't poison the row.
+  const normalizedMode = mode === "voice" ? "voice" : "chat";
 
   if (!EMAIL_RE.test(email.trim())) {
     return res.status(400).json({ error: "That doesn't look like a valid email." });
@@ -64,15 +69,17 @@ export default async function handler(
   const conversation = await prisma.conversation.create({
     data: {
       status: "in_progress",
+      mode: normalizedMode,
       metadata: JSON.stringify({ startedAt: Date.now() }),
       candidateId: candidate.id,
     },
-    select: { id: true },
+    select: { id: true, mode: true },
   });
 
   return res.status(201).json({
     conversationId: conversation.id,
     candidateId: candidate.id,
     roleTitle: role.title,
+    mode: conversation.mode,
   });
 }
