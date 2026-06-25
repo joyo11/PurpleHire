@@ -212,13 +212,10 @@ export default function VoiceInterview({
       setPhase("ready");
       return;
     }
-    // Render the AI bubble immediately so the candidate sees it before
-    // playback starts (~500-900ms TTS latency).
-    setMessages((prev) => [
-      ...prev,
-      { id: `a-${Date.now()}`, role: "assistant", content: text },
-    ]);
-    setPhase("ai-speaking");
+    // Stay in "thinking" while we fetch TTS, so the bubble doesn't appear
+    // before the voice. When audio is ready, render text + start playback
+    // in the SAME tick → text and voice land together.
+    setPhase("thinking");
 
     // Tear down any previous audio so we don't double-speak.
     if (audioRef.current) {
@@ -238,6 +235,22 @@ export default function VoiceInterview({
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioRef.current = audio;
+
+      // Wait for "canplay" so audio.play() resolves instantly and stays
+      // perfectly in sync with the text we're about to render.
+      await new Promise<void>((resolve) => {
+        const onReady = () => {
+          audio.removeEventListener("canplay", onReady);
+          resolve();
+        };
+        audio.addEventListener("canplay", onReady);
+        // Safety fallback in case canplay never fires (rare).
+        setTimeout(() => {
+          audio.removeEventListener("canplay", onReady);
+          resolve();
+        }, 1500);
+      });
+
       audio.onended = () => {
         URL.revokeObjectURL(url);
         if (audioRef.current === audio) audioRef.current = null;
@@ -248,12 +261,23 @@ export default function VoiceInterview({
         if (audioRef.current === audio) audioRef.current = null;
         setPhase("ready");
       };
+
+      // Render the bubble + start playback in the same render pass.
+      setMessages((prev) => [
+        ...prev,
+        { id: `a-${Date.now()}`, role: "assistant", content: text },
+      ]);
+      setPhase("ai-speaking");
       await audio.play();
     } catch (err) {
-      // TTS failed (network / OpenAI down / etc) — fall back to browser
-      // synthesis so the interview still completes. Robotic but better
-      // than silence.
       console.warn("[voice] TTS failed, using browser fallback:", err);
+      // TTS failed — still show text + use browser synth so the interview
+      // completes. Robotic but better than silence.
+      setMessages((prev) => [
+        ...prev,
+        { id: `a-${Date.now()}`, role: "assistant", content: text },
+      ]);
+      setPhase("ai-speaking");
       const utter = new SpeechSynthesisUtterance(text);
       utter.onend = () => setPhase((p) => (p === "done" ? "done" : "ready"));
       utter.onerror = () => setPhase("ready");
