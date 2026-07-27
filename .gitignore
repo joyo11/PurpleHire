@@ -8,3 +8,14 @@ node_modules/
 *.log
 .vercel
 .env*.local
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Outreach working data — contains real people's personal contact info.
+# NEVER commit these to the repo.
+outreach/*.csv
+outreach/*.txt
+outreach/__pycache__/
+outreach/jobright-profile/
+outreach/_debug.ts
