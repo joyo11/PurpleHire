@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { Message } from "@/types/chat";
+import { recordLlm } from "@/lib/observability";
+import { MODELS } from "@/lib/models";
 // OpenAI SDK v4 moduleResolution=bundler quirk: the legacy
 // "openai/resources/chat" subpath isn't in package.json exports, so we
 // import from the explicit completions subpath that IS exported.
@@ -58,6 +60,7 @@ export async function generateResponse(
   messages: Message[],
   systemPrompt: string,
 ): Promise<{ text: string; endInterviewReason?: string }> {
+  const started = Date.now();
   try {
     if (!openai.apiKey) {
       return {
@@ -71,12 +74,21 @@ export async function generateResponse(
     }));
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: MODELS.interview,
       messages: [{ role: "system", content: systemPrompt }, ...history],
       temperature: 0.7,
       max_tokens: 500,
       tools: [END_INTERVIEW_TOOL],
       tool_choice: "auto",
+    });
+
+    void recordLlm({
+      operation: "interview_turn",
+      model: MODELS.interview,
+      ok: true,
+      latencyMs: Date.now() - started,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
     });
 
     const message = response.choices[0]?.message;
@@ -112,6 +124,13 @@ export async function generateResponse(
     return { text, endInterviewReason };
   } catch (error: unknown) {
     const err = error as { response?: { status?: number }; message?: string };
+    void recordLlm({
+      operation: "interview_turn",
+      model: MODELS.interview,
+      ok: false,
+      latencyMs: Date.now() - started,
+      error: err.message,
+    });
     console.error("OpenAI API Error:", err.message);
     if (err.response?.status === 401) {
       return {

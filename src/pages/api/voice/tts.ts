@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import OpenAI from "openai";
+import { recordLlm } from "@/lib/observability";
+import { MODELS } from "@/lib/models";
 
 // OpenAI TTS endpoint. Streams an MP3 of `text` rendered in voice "nova"
 // (the energetic young-adult female voice). Uses the same OPENAI_API_KEY
@@ -52,9 +54,10 @@ export default async function handler(
     ? (voice as Voice)
     : "nova";
 
+  const started = Date.now();
   try {
     const speech = await openai.audio.speech.create({
-      model: "tts-1",
+      model: MODELS.tts,
       voice: safeVoice,
       input: text,
       response_format: "mp3",
@@ -67,11 +70,28 @@ export default async function handler(
     const arrayBuffer = await speech.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // TTS is priced per character, not per token.
+    void recordLlm({
+      operation: "tts",
+      model: MODELS.tts,
+      ok: true,
+      latencyMs: Date.now() - started,
+      chars: text.length,
+    });
+
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(buffer);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "TTS failed";
+    void recordLlm({
+      operation: "tts",
+      model: MODELS.tts,
+      ok: false,
+      latencyMs: Date.now() - started,
+      chars: text.length,
+      error: msg,
+    });
     console.error("[api/voice/tts]", msg);
     return res.status(500).json({ error: msg });
   }

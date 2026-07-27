@@ -28,3 +28,20 @@ model Message {
   conversationId String
 }
 
+
+model LlmCall {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  operation        String
+  model            String
+  ok               Boolean  @default(true)
+  latencyMs        Int      @default(0)
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  costUsd          Float    @default(0)
+  error            String?
+
+  @@index([createdAt])
+  @@index([operation])
+}

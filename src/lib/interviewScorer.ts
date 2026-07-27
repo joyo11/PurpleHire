@@ -1,26 +1,17 @@
 import OpenAI from "openai";
 import { prisma } from "./prisma";
 import type { InterviewPlan } from "./jdAnalyzer";
+import { withLlmSpan } from "@/lib/observability";
+import { MODELS } from "@/lib/models";
+import {
+  SCORING_SYSTEM,
+  buildScoringUserPrompt,
+  type TranscriptMessage,
+} from "@/lib/scoringPrompt";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "" });
 
 export type ScoreResult = { score: number; verdict: string };
-
-const SYSTEM = `You are an experienced hiring manager evaluating an AI-conducted interview transcript.
-
-Given a job description, the interview plan the bot followed, and the full transcript, score the candidate from 1.0 to 10.0 with one decimal place (e.g. 7.4, 8.7, 9.2):
-- 1.0–3.9: Clear no — missing must-haves, red flags hit, or interview ended early in a bad way.
-- 4.0–5.9: Mixed signal — some skills present, some gaps; would need a human follow-up to decide.
-- 6.0–7.9: Solid yes-leaning — most must-haves covered with credible answers; some thin spots.
-- 8.0–10.0: Strong candidate — clear must-have coverage, real depth, no concerns. Recruiter should advance.
-
-Use the full granularity (avoid lazy round numbers like 7.0, 8.0 unless that's truly the right score).
-
-Also produce a one-sentence verdict (max 25 words) the recruiter can scan, explaining the score.
-
-Return STRICT JSON: { "score": <number 1.0-10.0>, "verdict": "<one sentence>" }`;
-
-type TranscriptMessage = { role: "user" | "assistant"; content: string };
 
 /** Pure scoring — no DB. Reusable by both real interviews and the demo flow. */
 export async function scoreTranscript({
@@ -36,43 +27,32 @@ export async function scoreTranscript({
   messages: TranscriptMessage[];
   endReason: string | null;
 }): Promise<ScoreResult | null> {
-  const transcript = messages
-    .map(
-      (m) =>
-        `${m.role === "assistant" ? "Interviewer (PurpleHire)" : "Candidate"}: ${m.content}`,
-    )
-    .join("\n\n");
-
-  const userPrompt = `# Role
-${roleTitle}
-
-# Job description
-${jdText}
-
-${
-  plan
-    ? `# Interview plan the bot followed
-Must-haves: ${plan.must_haves.join(", ") || "(none)"}
-Skills probed: ${plan.skills_to_probe.join(", ") || "(none)"}
-Red flags watched: ${plan.red_flags.join(", ") || "(none)"}
-`
-    : ""
-}
-# Transcript
-${transcript}
-
-# End reason
-${endReason ?? "unknown"}`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    temperature: 0.2,
-    messages: [
-      { role: "system", content: SYSTEM },
-      { role: "user", content: userPrompt },
-    ],
+  const userPrompt = buildScoringUserPrompt({
+    roleTitle,
+    jdText,
+    plan,
+    messages,
+    endReason,
   });
+
+  const completion = await withLlmSpan(
+    "interview_score",
+    MODELS.scoring,
+    () =>
+      openai.chat.completions.create({
+        model: MODELS.scoring,
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: SCORING_SYSTEM },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    (c) => ({
+      promptTokens: c.usage?.prompt_tokens,
+      completionTokens: c.usage?.completion_tokens,
+    }),
+  );
 
   const raw = completion.choices[0]?.message?.content ?? "";
   try {

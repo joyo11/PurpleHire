@@ -19,6 +19,23 @@ type RecruiterRow = {
 };
 type DistRow = { label: string; value: number };
 type Window = { users: number; candidates: number; interviews: number; completed: number };
+type AiOpRow = {
+  operation: string;
+  calls: number;
+  errors: number;
+  avgLatencyMs: number;
+  costUsd: number;
+};
+type AiHealth = {
+  calls: number;
+  errors: number;
+  errorRate: number; // 0..100
+  avgLatencyMs: number;
+  totalCostUsd: number;
+  cost24hUsd: number;
+  totalTokens: number;
+  byOp: AiOpRow[];
+} | null;
 
 type Props = {
   user: { name: string | null; email: string | null; image: string | null };
@@ -39,9 +56,21 @@ type Props = {
     trendCandidates: Trend[];
     scoreDist: DistRow[];
     recruiters: RecruiterRow[];
+    ai: AiHealth;
   };
   generatedAt: string;
 };
+
+const OP_LABEL: Record<string, string> = {
+  interview_turn: "Interview turns",
+  jd_analysis: "JD analysis",
+  interview_score: "Scoring",
+  tts: "Voice (TTS)",
+};
+
+function usd(n: number): string {
+  return n < 1 ? `$${n.toFixed(4)}` : `$${n.toFixed(2)}`;
+}
 
 function Stat({
   label,
@@ -211,6 +240,89 @@ export default function StatsPage({ user, stats, generatedAt }: Props) {
                 accent="emerald"
               />
             </div>
+          </section>
+
+          {/* AI usage & health */}
+          <section className="mt-10">
+            <h2 className="mb-3 text-[14px] font-medium text-white/60">
+              AI usage &amp; health
+            </h2>
+            {stats.ai ? (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  <Stat label="Model calls" value={stats.ai.calls} accent="purple" />
+                  <Stat
+                    label="Error rate"
+                    value={`${stats.ai.errorRate.toFixed(1)}%`}
+                    sub={`${stats.ai.errors} failed`}
+                    accent={stats.ai.errorRate > 2 ? undefined : "emerald"}
+                  />
+                  <Stat
+                    label="Avg latency"
+                    value={`${(stats.ai.avgLatencyMs / 1000).toFixed(2)}s`}
+                  />
+                  <Stat label="Total spend" value={usd(stats.ai.totalCostUsd)} />
+                  <Stat
+                    label="Spend · 24h"
+                    value={usd(stats.ai.cost24hUsd)}
+                    accent="emerald"
+                  />
+                  <Stat
+                    label="Tokens"
+                    value={
+                      stats.ai.totalTokens > 1000
+                        ? `${(stats.ai.totalTokens / 1000).toFixed(0)}k`
+                        : stats.ai.totalTokens
+                    }
+                  />
+                </div>
+
+                <div className="mt-3 overflow-hidden rounded-2xl border border-white/10">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className="bg-white/[0.03] text-[11px] uppercase tracking-wide text-white/40">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Operation</th>
+                        <th className="px-4 py-3 text-right font-medium">Calls</th>
+                        <th className="px-4 py-3 text-right font-medium">Errors</th>
+                        <th className="px-4 py-3 text-right font-medium">Avg latency</th>
+                        <th className="px-4 py-3 text-right font-medium">Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.06]">
+                      {stats.ai.byOp.map((o) => (
+                        <tr key={o.operation} className="bg-white/[0.01]">
+                          <td className="px-4 py-3 text-white">
+                            {OP_LABEL[o.operation] ?? o.operation}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-white/80">
+                            {o.calls.toLocaleString()}
+                          </td>
+                          <td
+                            className={`px-4 py-3 text-right font-mono tabular-nums ${
+                              o.errors > 0 ? "text-rose-300" : "text-white/40"
+                            }`}
+                          >
+                            {o.errors}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-white/80">
+                            {(o.avgLatencyMs / 1000).toFixed(2)}s
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono tabular-nums text-white/80">
+                            {usd(o.costUsd)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-[13px] text-white/45">
+                No model calls logged yet. Every interview turn, JD analysis,
+                scoring run, and voice reply is recorded here once traffic comes
+                through.
+              </div>
+            )}
           </section>
 
           {/* Trends */}
@@ -424,6 +536,62 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     })
     .sort((a, b) => b.candidates - a.candidates);
 
+  // AI usage & health — best-effort; if the LlmCall table isn't there yet
+  // (migration not applied), just render the empty state instead of 500-ing.
+  let ai: AiHealth = null;
+  try {
+    const since24h = new Date(now - ms);
+    const [agg, errCount, byOpRaw, byOpErr, cost24h] = await Promise.all([
+      prisma.llmCall.aggregate({
+        _count: { _all: true },
+        _sum: { costUsd: true, totalTokens: true },
+        _avg: { latencyMs: true },
+      }),
+      prisma.llmCall.count({ where: { ok: false } }),
+      prisma.llmCall.groupBy({
+        by: ["operation"],
+        _count: { _all: true },
+        _sum: { costUsd: true },
+        _avg: { latencyMs: true },
+      }),
+      prisma.llmCall.groupBy({
+        by: ["operation"],
+        where: { ok: false },
+        _count: { _all: true },
+      }),
+      prisma.llmCall.aggregate({
+        _sum: { costUsd: true },
+        where: { createdAt: { gte: since24h } },
+      }),
+    ]);
+
+    const calls = agg._count._all;
+    if (calls > 0) {
+      const errByOp = new Map(byOpErr.map((r) => [r.operation, r._count._all]));
+      const byOp: AiOpRow[] = byOpRaw
+        .map((r) => ({
+          operation: r.operation,
+          calls: r._count._all,
+          errors: errByOp.get(r.operation) ?? 0,
+          avgLatencyMs: r._avg.latencyMs ?? 0,
+          costUsd: r._sum.costUsd ?? 0,
+        }))
+        .sort((a, b) => b.calls - a.calls);
+      ai = {
+        calls,
+        errors: errCount,
+        errorRate: (errCount / calls) * 100,
+        avgLatencyMs: agg._avg.latencyMs ?? 0,
+        totalCostUsd: agg._sum.costUsd ?? 0,
+        cost24hUsd: cost24h._sum.costUsd ?? 0,
+        totalTokens: agg._sum.totalTokens ?? 0,
+        byOp,
+      };
+    }
+  } catch {
+    ai = null;
+  }
+
   return {
     props: {
       user: {
@@ -448,6 +616,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         trendCandidates: countByDay(candidates),
         scoreDist,
         recruiters: recruiterRows,
+        ai,
       },
       generatedAt: new Date().toISOString(),
     },

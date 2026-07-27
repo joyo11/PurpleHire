@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { withLlmSpan } from "@/lib/observability";
+import { MODELS } from "@/lib/models";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "" });
 
@@ -47,18 +49,27 @@ export async function analyzeJd(
   title: string,
   jdText: string,
 ): Promise<JdAnalysis> {
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    temperature: 0.2,
-    messages: [
-      { role: "system", content: SYSTEM },
-      {
-        role: "user",
-        content: `Role title (provided separately): ${title}\n\n---\n\nJob description text:\n${jdText}`,
-      },
-    ],
-  });
+  const completion = await withLlmSpan(
+    "jd_analysis",
+    MODELS.jdAnalysis,
+    () =>
+      openai.chat.completions.create({
+        model: MODELS.jdAnalysis,
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: SYSTEM },
+          {
+            role: "user",
+            content: `Role title (provided separately): ${title}\n\n---\n\nJob description text:\n${jdText}`,
+          },
+        ],
+      }),
+    (c) => ({
+      promptTokens: c.usage?.prompt_tokens,
+      completionTokens: c.usage?.completion_tokens,
+    }),
+  );
 
   const raw = completion.choices[0]?.message?.content ?? "";
   let parsed: unknown;

@@ -116,3 +116,22 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+/// One row per LLM call — the observability spine. Written best-effort by
+/// src/lib/observability.ts; powers the "AI usage & health" panel on /stats.
+model LlmCall {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  operation        String   // interview_turn | jd_analysis | interview_score | tts
+  model            String
+  ok               Boolean  @default(true)
+  latencyMs        Int      @default(0)
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  costUsd          Float    @default(0)
+  error            String?  @db.Text
+
+  @@index([createdAt])
+  @@index([operation])
+}
