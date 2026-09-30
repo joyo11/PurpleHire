@@ -45,13 +45,13 @@ export default function Home() {
           <nav className="flex items-center gap-2 text-[14px] text-white/70 sm:gap-6">
             <Link
               href="/pricing"
-              className="hidden text-white/85 transition-colors hover:text-white sm:inline-block"
+              className="hidden rounded-full px-3 py-1.5 text-white/85 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96] sm:inline-block"
             >
               Pricing
             </Link>
             <Link
               href="/signin"
-              className="hidden text-white/85 transition-colors hover:text-white sm:inline-block"
+              className="hidden rounded-full px-3 py-1.5 text-white/85 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96] sm:inline-block"
             >
               Sign in
             </Link>

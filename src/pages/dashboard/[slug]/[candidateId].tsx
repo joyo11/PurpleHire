@@ -14,6 +14,7 @@ import StrengthsConcerns from "@/components/report/StrengthsConcerns";
 import EvidenceList from "@/components/report/EvidenceList";
 import PerQuestionList from "@/components/report/PerQuestionList";
 import ScoreExplainer from "@/components/ScoreExplainer";
+import { aiAssistRisk, riskLabel, riskBadgeClasses } from "@/lib/proctoring";
 import {
   PHTopBar,
   PHAvatar,
@@ -51,6 +52,7 @@ type Props = {
     status: string;
     endReason: string | null;
     tabSwitches: number;
+    pasteCount: number;
   } | null;
   messages: Msg[];
 };
@@ -295,6 +297,22 @@ export default function Transcript({
                     ⚠ Left tab {conversation.tabSwitches}×
                   </span>
                 )}
+                {conversation &&
+                  (() => {
+                    const risk = aiAssistRisk({
+                      tabSwitches: conversation.tabSwitches,
+                      pasteCount: conversation.pasteCount,
+                    });
+                    if (risk === "low") return null;
+                    return (
+                      <span
+                        title={`${conversation.pasteCount} large paste(s), ${conversation.tabSwitches} tab leave(s). A hint, not a verdict.`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${riskBadgeClasses(risk)}`}
+                      >
+                        {riskLabel(risk)}
+                      </span>
+                    );
+                  })()}
                 {reviewed && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
                     ✓ Reviewed
@@ -502,6 +520,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
             status: conv.status,
             endReason: conv.endReason,
             tabSwitches: conv.tabSwitches,
+            pasteCount: conv.pasteCount,
           }
         : null,
       messages:

@@ -236,7 +236,7 @@ export function PHButton({
   disabled,
 }: PHButtonProps) {
   const base =
-    "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition-all duration-150 ease-out select-none will-change-transform hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]";
+    "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition-all duration-150 ease-out select-none will-change-transform hover:-translate-y-0.5 hover:scale-[1.02] active:translate-y-0 active:scale-[0.96]";
   const sizes = {
     sm: "h-9 px-4 text-sm",
     md: "h-11 px-5 text-[15px]",
@@ -784,7 +784,7 @@ export function PHTopBar({ user, onSignOut }: PHTopBarProps) {
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className="text-[13px] text-white/55 transition-colors hover:text-white"
+              className="rounded-full px-3 py-1.5 text-[13px] text-white/55 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96]"
             >
               Sign out
             </button>
@@ -792,7 +792,7 @@ export function PHTopBar({ user, onSignOut }: PHTopBarProps) {
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <a className="text-[14px] text-white/75 transition-colors hover:text-white">
+          <a className="cursor-pointer rounded-full px-3 py-1.5 text-[14px] text-white/75 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96]">
             Sign in
           </a>
           <PHButton size="sm" iconRight={<ChevronRight />}>
