@@ -201,7 +201,10 @@ export function PHLogo({
         />
       )}
       {wordmark && (
-        <span className="font-medium tracking-tight text-white">PurpleHire</span>
+        <span className="font-bold tracking-tight">
+          <span className="text-white">Purple</span>
+          <span className="ph-grad-text">Hire</span>
+        </span>
       )}
     </div>
   );
