@@ -108,6 +108,8 @@ model Candidate {
   verdict        String?        @db.Text
   scoredAt       DateTime?
   reviewedAt     DateTime?
+  // Recruiter decision: null (none) | "shortlisted" | "rejected" | "maybe"
+  decision       String?
 
   @@index([roleId])
 }
