@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { Message } from "@/types/chat";
 import { recordLlm } from "@/lib/observability";
 import { MODELS, FALLBACK_MODEL, LAST_RESORT_MODEL } from "@/lib/models";
+import type { EvidenceLevel } from "@/lib/interviewMachine";
 // OpenAI SDK v4 moduleResolution=bundler quirk: the legacy
 // "openai/resources/chat" subpath isn't in package.json exports, so we
 // import from the explicit completions subpath that IS exported.
@@ -218,5 +219,183 @@ export async function generateResponse(
     return {
       text: "I'm having trouble responding right now. Could you try again?",
     };
+  }
+}
+
+/**
+ * Structured interviewer turn used by the real interview flow (/api/chat).
+ *
+ * Unlike generateResponse, the model returns a JSON object: its natural reply
+ * PLUS the signals the server needs to run the deterministic state machine
+ * (which competency the candidate's last answer addressed, how strong the
+ * evidence was, an advisory recommendation, and a safety flag). The model has
+ * NO tool to end the interview: completion is decided by the server. See
+ * src/lib/interviewMachine.ts.
+ */
+export type InterviewTurn = {
+  reply: string;
+  phase: "welcome" | "interview";
+  assessed: { competencyId: string; evidence: EvidenceLevel } | null;
+  recommend: "continue" | "wrap_up";
+  safety: "none" | "red_flag";
+  redFlagLabel?: string;
+  moderationFlagged?: boolean;
+};
+
+const EVIDENCE_SET = new Set(["none", "weak", "some", "strong"]);
+
+export async function runInterviewTurn(
+  messages: Message[],
+  systemPrompt: string,
+): Promise<InterviewTurn> {
+  const started = Date.now();
+  const safeContinue = (reply: string): InterviewTurn => ({
+    reply,
+    phase: "interview",
+    assessed: null,
+    recommend: "continue",
+    safety: "none",
+  });
+
+  try {
+    if (!openai.apiKey) {
+      return safeContinue(
+        "I apologize, but the AI service isn't configured right now.",
+      );
+    }
+
+    // Moderation pre-check (fail OPEN). A flagged message is refused and
+    // reported so the server can count repeated abuse and end it there.
+    const lastCandidate = [...messages].reverse().find((m) => m.role === "user");
+    if (lastCandidate?.content?.trim()) {
+      try {
+        const mod = await openai.moderations.create({
+          model: "omni-moderation-latest",
+          input: lastCandidate.content,
+        });
+        if (mod.results?.[0]?.flagged) {
+          void recordLlm({
+            operation: "interview_turn",
+            model: "omni-moderation-latest",
+            ok: true,
+            latencyMs: Date.now() - started,
+            error: "candidate_message_flagged",
+          });
+          return {
+            reply:
+              "I'm not able to engage with that. Let's keep this to your experience for the role. Could you tell me about a recent project you're proud of?",
+            phase: "interview",
+            assessed: null,
+            recommend: "continue",
+            safety: "none",
+            moderationFlagged: true,
+          };
+        }
+      } catch (modErr) {
+        console.error(
+          "moderation check failed (failing open):",
+          (modErr as Error).message,
+        );
+      }
+    }
+
+    const history: ChatCompletionMessageParam[] = messages.map((msg) =>
+      msg.role === "user"
+        ? { role: "user", content: `<candidate>\n${msg.content}\n</candidate>` }
+        : { role: "assistant", content: msg.content },
+    );
+    const convoMessages: ChatCompletionMessageParam[] = [
+      { role: "system", content: systemPrompt + INJECTION_GUARD },
+      ...history,
+    ];
+
+    const modelChain = [
+      ...new Set([MODELS.interview, FALLBACK_MODEL, LAST_RESORT_MODEL]),
+    ];
+    let usedModel = modelChain[0];
+    let response;
+    let lastErr: unknown;
+    for (const m of modelChain) {
+      try {
+        response = await openai.chat.completions.create({
+          model: m,
+          messages: convoMessages,
+          temperature: 0.35,
+          max_tokens: 600,
+          response_format: { type: "json_object" },
+        });
+        usedModel = m;
+        lastErr = undefined;
+        break;
+      } catch (err) {
+        lastErr = err;
+        console.error(`interview model "${m}" failed:`, (err as Error).message);
+      }
+    }
+    if (!response) throw lastErr;
+
+    void recordLlm({
+      operation: "interview_turn",
+      model: usedModel,
+      ok: true,
+      latencyMs: Date.now() - started,
+      promptTokens: response.usage?.prompt_tokens,
+      completionTokens: response.usage?.completion_tokens,
+    });
+
+    const raw = response.choices[0]?.message?.content ?? "";
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      // Model didn't return JSON — treat the whole thing as the reply.
+      return safeContinue(raw.trim() || "Could you tell me a bit more?");
+    }
+
+    const reply =
+      typeof parsed.reply === "string" && parsed.reply.trim()
+        ? parsed.reply.trim()
+        : "Could you tell me a bit more about that?";
+    const phase = parsed.phase === "welcome" ? "welcome" : "interview";
+    const recommend = parsed.recommend === "wrap_up" ? "wrap_up" : "continue";
+    const safety = parsed.safety === "red_flag" ? "red_flag" : "none";
+
+    let assessed: InterviewTurn["assessed"] = null;
+    const a = parsed.assessed as
+      | { competencyId?: unknown; evidence?: unknown }
+      | null
+      | undefined;
+    if (a && a.competencyId != null && typeof a.evidence === "string") {
+      const ev = a.evidence.toLowerCase();
+      if (EVIDENCE_SET.has(ev)) {
+        assessed = {
+          competencyId: String(a.competencyId),
+          evidence: ev as EvidenceLevel,
+        };
+      }
+    }
+
+    return {
+      reply,
+      phase,
+      assessed,
+      recommend,
+      safety,
+      redFlagLabel:
+        typeof parsed.redFlagLabel === "string" ? parsed.redFlagLabel : undefined,
+    };
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    void recordLlm({
+      operation: "interview_turn",
+      model: MODELS.interview,
+      ok: false,
+      latencyMs: Date.now() - started,
+      error: err.message,
+    });
+    console.error("runInterviewTurn error:", err.message);
+    return safeContinue(
+      "I'm having trouble responding right now. Could you try again?",
+    );
   }
 }

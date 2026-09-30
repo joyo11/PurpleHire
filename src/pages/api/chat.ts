@@ -1,27 +1,38 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/prisma";
-import { generateResponse } from "@/services/openaiService";
-import { buildInterviewSystemPrompt } from "@/lib/interviewPrompt";
+import { runInterviewTurn } from "@/services/openaiService";
+import {
+  buildInterviewSystemPrompt,
+  type PromptCompetency,
+} from "@/lib/interviewPrompt";
 import type { InterviewPlan } from "@/lib/jdAnalyzer";
 import { scoreInterview } from "@/lib/interviewScorer";
 import { classifyCandidateIntent } from "@/lib/inferEndFromText";
+import {
+  type Coverage,
+  type EvidenceLevel,
+  mergeEvidence,
+  uncoveredRequired,
+  decideCompletion,
+  canFollowUp,
+  classifyReadiness,
+  FOLLOWUP_CAP,
+  MIN_QUESTIONS,
+  TARGET_MIN,
+  TARGET_MAX,
+  MAX_QUESTIONS,
+} from "@/lib/interviewMachine";
 
-// Hard cap on transcript length. Once the conversation reaches this many
-// messages with no natural or confirmed ending, we force the interview closed
-// so a stuck/looping model can't run forever.
-const MAX_TURNS = 24;
-
-// Copy for the clarification turn (the three-way choice). Rendered whenever an
-// ambiguous "leaving" signal arrives; the UI mirrors it with action chips.
-const CLARIFY_MESSAGE =
-  "No problem. We can keep going in text, skip this question, or wrap up here — what works?";
-
-// Server-owned interview control state, persisted in Conversation.metadata
-// (a JSON string). We never make the model count strikes or own end authority.
+// Server-authoritative interview state, persisted in Conversation.metadata.
+// The model NEVER owns completion; this state does.
 type ConvoMeta = {
   startedAt?: number;
-  state?: "active" | "clarifying" | "ended";
-  declineCount?: number;
+  state?: "welcome" | "active" | "ended";
+  coverage?: Coverage;
+  questionsAsked?: number;
+  followups?: Record<string, number>;
+  noImprovementStreak?: number;
+  abuseCount?: number;
   [k: string]: unknown;
 };
 
@@ -34,22 +45,29 @@ function parseMeta(raw: string | null | undefined): ConvoMeta {
   }
 }
 
-// End authority (server-owned): bot prose never terminates. Only a genuine
-// full-interview completion or a safety red flag the model proposes may end a
-// turn. Everything else it "proposes" (not_interested, reschedule, off_topic,
-// missing_must_have, unclear_communication) is ignored so we never accidentally
-// terminate an engaged candidate.
-function gateProposedEnd(reason: string | undefined): string | undefined {
-  if (!reason) return undefined;
-  if (reason === "completed") return reason;
-  if (reason.startsWith("red_flag_")) return reason;
-  return undefined;
+const RANK: Record<EvidenceLevel, number> = {
+  none: 0,
+  weak: 1,
+  some: 2,
+  strong: 3,
+};
+
+/** Required competencies to cover, derived deterministically from the plan.
+ *  ids are stable stringified indices the model reports evidence against. */
+function requiredCompetencies(plan: InterviewPlan): PromptCompetency[] {
+  const src =
+    plan.must_haves && plan.must_haves.length
+      ? plan.must_haves
+      : plan.skills_to_probe && plan.skills_to_probe.length
+        ? plan.skills_to_probe
+        : [];
+  const list = src.slice(0, 8).map((label, i) => ({ id: String(i), label }));
+  return list.length ? list : [{ id: "0", label: "General fit for the role" }];
 }
 
-// Lightweight, dependency-free per-IP rate limiting. Kept in module memory so
-// it resets on redeploy; good enough to blunt abuse of the LLM-backed endpoint.
-const RATE_LIMIT = 30; // requests
-const RATE_WINDOW_MS = 60_000; // per minute
+// Lightweight, dependency-free per-IP rate limiting.
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
 const rateBuckets = new Map<string, number[]>();
 
 function rateLimited(ip: string): boolean {
@@ -57,7 +75,6 @@ function rateLimited(ip: string): boolean {
   const hits = (rateBuckets.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   hits.push(now);
   rateBuckets.set(ip, hits);
-  // Opportunistic cleanup so the map doesn't grow unbounded.
   if (rateBuckets.size > 5000) {
     for (const [k, v] of rateBuckets) {
       if (v.every((t) => now - t >= RATE_WINDOW_MS)) rateBuckets.delete(k);
@@ -81,10 +98,11 @@ export default async function handler(
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
   }
-
   if (rateLimited(clientIp(req))) {
     res.setHeader("Retry-After", "60");
-    return res.status(429).json({ error: "Too many requests. Please slow down." });
+    return res
+      .status(429)
+      .json({ error: "Too many requests. Please slow down." });
   }
 
   try {
@@ -92,13 +110,13 @@ export default async function handler(
       message?: string;
       conversationId?: string;
       isInitial?: boolean;
-      action?: "continue" | "skip" | "end";
+      action?: "skip" | "leave";
     };
 
     if (!conversationId) {
-      return res
-        .status(400)
-        .json({ error: "conversationId is required (start via /api/interviews/start)" });
+      return res.status(400).json({
+        error: "conversationId is required (start via /api/interviews/start)",
+      });
     }
 
     const conversation = await prisma.conversation.findUnique({
@@ -108,14 +126,16 @@ export default async function handler(
         candidate: { include: { role: true } },
       },
     });
-
     if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
     }
-    if (!conversation.candidate || !conversation.candidate.role) {
+    if (!conversation.candidate?.role) {
       return res
         .status(400)
         .json({ error: "Conversation has no linked candidate/role" });
+    }
+    if (conversation.status === "completed" || conversation.status === "left_early") {
+      return res.status(409).json({ error: "This interview is already closed." });
     }
 
     const role = conversation.candidate.role;
@@ -127,107 +147,86 @@ export default async function handler(
     }
 
     const candidateName = conversation.candidate.name;
-    const systemPrompt = buildInterviewSystemPrompt({
-      roleTitle: role.title,
-      candidateName,
-      jdText: role.jdText,
-      plan,
-    });
+    const comps = requiredCompetencies(plan);
+    const requiredIds = comps.map((c) => c.id);
 
     const meta = parseMeta(conversation.metadata);
+    meta.state ??= "welcome";
+    meta.coverage ??= {};
+    meta.questionsAsked ??= 0;
+    meta.followups ??= {};
+    meta.noImprovementStreak ??= 0;
+    meta.abuseCount ??= 0;
 
+    const historyOf = (msgs: { id: string; content: string; role: string; conversationId: string; createdAt: Date }[]) =>
+      msgs.map((m) => ({
+        id: m.id,
+        content: m.content,
+        role: m.role as "user" | "assistant",
+        conversationId: m.conversationId,
+        createdAt: m.createdAt,
+      }));
+
+    const buildPrompt = (
+      phase: "welcome" | "active",
+      readiness: "ready" | "not_ready" | "unclear" | undefined,
+      neededIds: string[],
+    ) =>
+      buildInterviewSystemPrompt({
+        roleTitle: role.title,
+        candidateName,
+        jdText: role.jdText,
+        plan,
+        competencies: comps,
+        phase,
+        readiness,
+        neededIds,
+        questionsAsked: meta.questionsAsked ?? 0,
+        targetMin: TARGET_MIN,
+        targetMax: TARGET_MAX,
+        maxQuestions: MAX_QUESTIONS,
+      });
+
+    // ---------- INITIAL GREETING (welcome gate) ----------
     if (isInitial) {
-      const llm = await generateResponse([], systemPrompt);
-      const endInterviewReason = gateProposedEnd(llm.endInterviewReason);
-      const assistantMessage = await prisma.message.create({
+      const turn = await runInterviewTurn([], buildPrompt("welcome", undefined, requiredIds));
+      const assistant = await prisma.message.create({
         data: {
           content:
-            llm.text ||
-            `Hi ${candidateName}! Ready to chat about the ${role.title} role?`,
+            turn.reply ||
+            `Hi ${candidateName}, welcome. Ready to start the ${role.title} interview?`,
           role: "assistant",
           conversationId: conversation.id,
         },
       });
-      meta.state = endInterviewReason ? "ended" : "active";
+      meta.state = "welcome";
+      meta.startedAt ??= Date.now();
       await prisma.conversation.update({
         where: { id: conversation.id },
         data: { metadata: JSON.stringify(meta), updatedAt: new Date() },
       });
       return res.status(200).json({
-        messages: [assistantMessage],
+        messages: [assistant],
         conversationId: conversation.id,
-        status: endInterviewReason ? "completed" : "in_progress",
-        endInterviewReason,
+        status: "welcome",
       });
     }
 
-    // Resolve this turn's control intent. Chips (from the recovery UI) are
-    // authoritative; typed messages go through the server-side classifier.
-    const chip =
-      action === "continue" || action === "skip" || action === "end"
-        ? action
-        : null;
-
-    let userText: string;
-    if (chip === "end") userText = "I'd like to end the interview.";
-    else if (chip === "skip") userText = "Let's skip this question and move on.";
-    else if (chip === "continue") userText = "Let's keep going in text.";
-    else {
-      if (!message?.trim()) {
-        return res.status(400).json({ error: "message is required" });
-      }
-      userText = message.trim();
-    }
-
-    const priorState = meta.state === "clarifying" ? "clarifying" : "active";
-    const declineCount =
-      typeof meta.declineCount === "number" ? meta.declineCount : 0;
-
-    // "end" / "clarify" / "continue" (continue covers skip + normal Q&A).
-    let control: "end" | "clarify" | "continue";
-    if (chip === "end") {
-      // Confirmed via the End-interview chip (the UI requires a confirm tap).
-      control = "end";
-    } else if (chip === "skip" || chip === "continue") {
-      control = "continue";
-    } else {
-      const intent = classifyCandidateIntent(userText);
-      if (intent === "explicit_end") {
-        control = "end";
-      } else if (intent === "leave") {
-        // Ambiguous leave. Never ends. First one -> clarify. A repeat while
-        // already clarifying -> skip and advance (still never ends).
-        control =
-          priorState === "clarifying" && declineCount >= 1
-            ? "continue"
-            : "clarify";
-      } else {
-        control = "continue";
-      }
-    }
-
-    // Persist the candidate turn.
-    const userMessage = await prisma.message.create({
-      data: { content: userText, role: "user", conversationId: conversation.id },
-    });
-
-    // ---- CONFIRMED / EXPLICIT END ----
-    if (control === "end") {
-      const closing = `Thanks for taking the time today, ${candidateName}. I'll pass along what we covered to the hiring team. Take care!`;
-      const assistantMessage = await prisma.message.create({
+    // ---------- EXPLICIT LEAVE (client already confirmed) ----------
+    if (action === "leave") {
+      const assistant = await prisma.message.create({
         data: {
-          content: closing,
+          content: `Thanks for your time, ${candidateName}. I've saved where you left off. This interview will be marked incomplete for the hiring team.`,
           role: "assistant",
           conversationId: conversation.id,
         },
       });
       meta.state = "ended";
-      meta.declineCount = 0;
       await prisma.conversation.update({
         where: { id: conversation.id },
         data: {
-          status: "completed",
-          endReason: "candidate_ended",
+          status: "left_early",
+          endReason: "candidate_left",
           metadata: JSON.stringify(meta),
           updatedAt: new Date(),
         },
@@ -238,24 +237,41 @@ export default async function handler(
         console.error("scoreInterview failed", err);
       }
       return res.status(200).json({
-        messages: [userMessage, assistantMessage],
+        messages: [assistant],
         conversationId: conversation.id,
-        status: "completed",
-        endInterviewReason: "candidate_ended",
+        status: "left_early",
       });
     }
 
-    // ---- CLARIFY (ambiguous leave) — never ends, offers the three choices ----
-    if (control === "clarify") {
-      const assistantMessage = await prisma.message.create({
-        data: {
-          content: CLARIFY_MESSAGE,
-          role: "assistant",
-          conversationId: conversation.id,
-        },
+    // Resolve the candidate's turn text.
+    const isSkip = action === "skip";
+    let userText: string;
+    if (isSkip) {
+      userText = "(skipped this question)";
+    } else {
+      if (!message?.trim()) {
+        return res.status(400).json({ error: "message is required" });
+      }
+      userText = message.trim();
+    }
+
+    const userMessage = await prisma.message.create({
+      data: { content: userText, role: "user", conversationId: conversation.id },
+    });
+    const history = historyOf([...conversation.messages, userMessage]);
+
+    // ---------- WELCOME STATE: readiness handling ----------
+    if (meta.state === "welcome") {
+      const readiness = isSkip ? "unclear" : classifyReadiness(userText);
+      const turn = await runInterviewTurn(history, buildPrompt("welcome", readiness, requiredIds));
+      const started = readiness === "ready" || turn.phase === "interview";
+      const assistant = await prisma.message.create({
+        data: { content: turn.reply, role: "assistant", conversationId: conversation.id },
       });
-      meta.state = "clarifying";
-      meta.declineCount = declineCount + 1;
+      if (started) {
+        meta.state = "active";
+        meta.questionsAsked = 1; // the first interview question was just asked
+      }
       await prisma.conversation.update({
         where: { id: conversation.id },
         data: {
@@ -265,75 +281,154 @@ export default async function handler(
         },
       });
       return res.status(200).json({
-        messages: [userMessage, assistantMessage],
+        messages: [userMessage, assistant],
         conversationId: conversation.id,
-        status: "clarifying",
+        status: started ? "in_progress" : "welcome",
       });
     }
 
-    // ---- CONTINUE / SKIP / NORMAL Q&A — run the interviewer model ----
-    meta.state = "active";
-    meta.declineCount = 0;
-
-    const history = [...conversation.messages, userMessage].map((m) => ({
-      id: m.id,
-      content: m.content,
-      role: m.role as "user" | "assistant",
-      conversationId: m.conversationId,
-      createdAt: m.createdAt,
-    }));
-
-    const llm = await generateResponse(history, systemPrompt);
-    const text = llm.text;
-
-    // Gate the model's proposed end (bot prose never terminates).
-    let endInterviewReason = gateProposedEnd(llm.endInterviewReason);
-    // Hard turn cap: force-close a stuck/looping interview once the transcript
-    // gets too long. `history` already includes the just-added candidate message.
-    if (!endInterviewReason && history.length >= MAX_TURNS) {
-      endInterviewReason = "turn_limit";
-    }
-
-    let assistantMessage = null;
-    if (text) {
-      assistantMessage = await prisma.message.create({
+    // ---------- ACTIVE STATE ----------
+    // Typed explicit-end intent routes to the client Leave confirmation rather
+    // than ending: no auto-termination, but we honour a clear wish to stop.
+    if (!isSkip && classifyCandidateIntent(userText) === "explicit_end") {
+      const assistant = await prisma.message.create({
         data: {
-          content: text,
+          content: `No problem, ${candidateName}. You can leave the interview using the "Leave interview" option at the top, and it will be marked incomplete. Or we can keep going, whichever you prefer.`,
           role: "assistant",
           conversationId: conversation.id,
         },
       });
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { metadata: JSON.stringify(meta), updatedAt: new Date() },
+      });
+      return res.status(200).json({
+        messages: [userMessage, assistant],
+        conversationId: conversation.id,
+        status: "confirm_leave",
+      });
     }
 
-    const newStatus = endInterviewReason ? "completed" : "in_progress";
-    if (endInterviewReason) meta.state = "ended";
+    // Which competencies still need evidence and can still be probed.
+    const neededIds = uncoveredRequired(meta.coverage, requiredIds).filter((id) =>
+      canFollowUp(meta.followups ?? {}, id),
+    );
 
-    await prisma.conversation.update({
-      where: { id: conversation.id },
-      data: {
-        status: newStatus,
-        endReason: endInterviewReason ?? null,
-        metadata: JSON.stringify(meta),
-        updatedAt: new Date(),
-      },
-    });
+    const turn = await runInterviewTurn(history, buildPrompt("active", undefined, neededIds));
 
-    if (newStatus === "completed") {
+    // Safety: a genuine red flag, or repeated moderation-flagged messages, ends
+    // the interview (server-decided, not model-decided).
+    if (turn.moderationFlagged) meta.abuseCount = (meta.abuseCount ?? 0) + 1;
+    const redFlag =
+      turn.safety === "red_flag" || (meta.abuseCount ?? 0) >= 2;
+    if (redFlag) {
+      const assistant = await prisma.message.create({
+        data: {
+          content: "Thanks for your time. I'm going to wrap up here.",
+          role: "assistant",
+          conversationId: conversation.id,
+        },
+      });
+      meta.state = "ended";
+      const label = turn.redFlagLabel ? `red_flag_${turn.redFlagLabel}` : "red_flag_abuse";
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          status: "completed",
+          endReason: label,
+          metadata: JSON.stringify(meta),
+          updatedAt: new Date(),
+        },
+      });
       try {
         await scoreInterview(conversation.id);
       } catch (err) {
         console.error("scoreInterview failed", err);
       }
+      return res.status(200).json({
+        messages: [userMessage, assistant],
+        conversationId: conversation.id,
+        status: "completed",
+        endReason: label,
+      });
     }
 
-    const messagesToReturn = [userMessage];
-    if (assistantMessage) messagesToReturn.push(assistantMessage);
+    // Apply the model's evidence signal. A SKIP is never evidence.
+    let improved = false;
+    if (!isSkip && turn.assessed && requiredIds.includes(turn.assessed.competencyId)) {
+      const id = turn.assessed.competencyId;
+      const before = meta.coverage![id];
+      const merged = mergeEvidence(before, turn.assessed.evidence);
+      if (before !== undefined) {
+        meta.followups![id] = (meta.followups![id] ?? 0) + 1;
+      }
+      meta.coverage![id] = merged;
+      improved = RANK[merged] > (before ? RANK[before] : 0);
+    }
+    meta.noImprovementStreak = improved ? 0 : (meta.noImprovementStreak ?? 0) + 1;
 
+    // Deterministic completion decision (the model's recommend is advisory).
+    const decision = decideCompletion({
+      questionsAsked: meta.questionsAsked ?? 0,
+      coverage: meta.coverage ?? {},
+      requiredIds,
+      noImprovementStreak: meta.noImprovementStreak ?? 0,
+    });
+
+    if (decision.complete) {
+      const wrap = `That's everything I needed, ${candidateName}. Thanks for taking the time, your responses have been submitted to the hiring team.`;
+      const assistant = await prisma.message.create({
+        data: { content: wrap, role: "assistant", conversationId: conversation.id },
+      });
+      meta.state = "ended";
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: {
+          status: "completed",
+          endReason: `completed_${decision.reason}`,
+          metadata: JSON.stringify(meta),
+          updatedAt: new Date(),
+        },
+      });
+      try {
+        await scoreInterview(conversation.id);
+      } catch (err) {
+        console.error("scoreInterview failed", err);
+      }
+      return res.status(200).json({
+        messages: [userMessage, assistant],
+        conversationId: conversation.id,
+        status: "completed",
+        endReason: `completed_${decision.reason}`,
+      });
+    }
+
+    // Continue: ask the next question. If the model wrapped up on its own
+    // despite an open competency, fall back to a targeted question.
+    let replyText = turn.reply;
+    const looksLikeQuestion = /\?/.test(replyText);
+    if (!looksLikeQuestion && neededIds.length) {
+      const needLabel = comps.find((c) => c.id === neededIds[0])?.label;
+      if (needLabel) {
+        replyText = `Let's dig into ${needLabel}. Could you walk me through your hands-on experience there?`;
+      }
+    }
+    const assistant = await prisma.message.create({
+      data: { content: replyText, role: "assistant", conversationId: conversation.id },
+    });
+    meta.questionsAsked = (meta.questionsAsked ?? 0) + 1;
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        status: "in_progress",
+        metadata: JSON.stringify(meta),
+        updatedAt: new Date(),
+      },
+    });
     return res.status(200).json({
-      messages: messagesToReturn,
+      messages: [userMessage, assistant],
       conversationId: conversation.id,
-      status: newStatus,
-      endInterviewReason,
+      status: "in_progress",
     });
   } catch (error) {
     console.error("Error in chat API:", error);

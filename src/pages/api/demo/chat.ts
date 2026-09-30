@@ -1,35 +1,31 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { generateResponse } from "@/services/openaiService";
-import { buildInterviewSystemPrompt } from "@/lib/interviewPrompt";
+import { runInterviewTurn } from "@/services/openaiService";
+import {
+  buildInterviewSystemPrompt,
+  type PromptCompetency,
+} from "@/lib/interviewPrompt";
 import { getSampleRole } from "@/lib/sampleRoles";
-import { classifyCandidateIntent } from "@/lib/inferEndFromText";
-
-// Copy for the clarification turn — mirrors /api/chat so the demo behaves
-// identically (an ambiguous "leaving" signal never ends the interview).
-const CLARIFY_MESSAGE =
-  "No problem. We can keep going in text, skip this question, or wrap up here — what works?";
-
-// End authority is server-owned: bot prose never terminates. Only a genuine
-// completion or a safety red flag the model proposes may end a turn.
-function gateProposedEnd(reason: string | undefined): string | undefined {
-  if (!reason) return undefined;
-  if (reason === "completed") return reason;
-  if (reason.startsWith("red_flag_")) return reason;
-  return undefined;
-}
+import { TARGET_MIN, TARGET_MAX, MAX_QUESTIONS } from "@/lib/interviewMachine";
 
 /**
- * Ephemeral chat endpoint for the public demo. No DB writes — the
- * caller (browser) sends the full message history every turn and we
- * stream a single new bot response back. Anyone hitting the URL is
- * allowed, but the only roles that work are the hardcoded sample
- * keys, and we cap history length to bound cost.
+ * Ephemeral chat endpoint for the public demo. No DB writes — the browser sends
+ * the full history each turn. Stateless, so it can't run the full coverage
+ * tracker; it uses a lightweight question count to decide when to wrap, and the
+ * AI (never the candidate) still owns completion.
  */
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_LEN = 4000;
 const MAX_NAME_LEN = 80;
+const DEMO_MIN = 4; // demo wraps a little sooner than a real interview
+
+function demoCompetencies(mustHaves: string[]): PromptCompetency[] {
+  const list = (mustHaves ?? [])
+    .slice(0, 6)
+    .map((label, i) => ({ id: String(i), label }));
+  return list.length ? list : [{ id: "0", label: "General fit for the role" }];
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -44,11 +40,13 @@ export default async function handler(
     roleKey?: string;
     candidateName?: string;
     messages?: ClientMessage[];
-    action?: "continue" | "skip" | "end";
+    action?: "skip" | "leave";
   };
 
   if (!roleKey || !candidateName?.trim() || !Array.isArray(messages)) {
-    return res.status(400).json({ error: "roleKey, candidateName, messages required" });
+    return res
+      .status(400)
+      .json({ error: "roleKey, candidateName, messages required" });
   }
   if (candidateName.length > MAX_NAME_LEN) {
     return res.status(400).json({ error: "name too long" });
@@ -70,42 +68,35 @@ export default async function handler(
     return res.status(404).json({ error: "Unknown demo role" });
   }
 
-  const systemPrompt = buildInterviewSystemPrompt({
-    roleTitle: sample.title,
-    candidateName: candidateName.trim().slice(0, MAX_NAME_LEN),
-    jdText: sample.jdText,
-    plan: sample.plan,
-  });
-
   const name = candidateName.trim().slice(0, MAX_NAME_LEN);
-  const closing = `Thanks for taking the time today, ${name}. Take care!`;
 
-  // Server-authoritative ending (mirrors /api/chat). The End-interview chip is
-  // a confirmed, explicit end. A typed message is classified: an explicit
-  // whole-interview end is honored; an ambiguous "leaving" signal NEVER ends
-  // and routes to a clarification turn; everything else continues normally.
-  if (action === "end") {
+  if (action === "leave") {
     return res.status(200).json({
-      message: { role: "assistant", content: closing },
-      endInterviewReason: "candidate_ended",
+      message: {
+        role: "assistant",
+        content: `Thanks for trying the demo, ${name}. In a real interview this would be saved as incomplete for the hiring team.`,
+      },
+      status: "left_early",
     });
   }
-  if (!action) {
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    const intent = classifyCandidateIntent(lastUser?.content ?? "");
-    if (intent === "explicit_end") {
-      return res.status(200).json({
-        message: { role: "assistant", content: closing },
-        endInterviewReason: "candidate_ended",
-      });
-    }
-    if (intent === "leave") {
-      return res.status(200).json({
-        message: { role: "assistant", content: CLARIFY_MESSAGE },
-        status: "clarifying",
-      });
-    }
-  }
+
+  const comps = demoCompetencies(sample.plan.must_haves);
+  const questionsAsked = messages.filter((m) => m.role === "assistant").length;
+
+  const systemPrompt = buildInterviewSystemPrompt({
+    roleTitle: sample.title,
+    candidateName: name,
+    jdText: sample.jdText,
+    plan: sample.plan,
+    competencies: comps,
+    phase: questionsAsked === 0 ? "welcome" : "active",
+    readiness: questionsAsked === 0 ? undefined : undefined,
+    neededIds: comps.map((c) => c.id),
+    questionsAsked,
+    targetMin: TARGET_MIN,
+    targetMax: TARGET_MAX,
+    maxQuestions: MAX_QUESTIONS,
+  });
 
   const history = messages.map((m, i) => ({
     id: `demo-${i}`,
@@ -115,16 +106,25 @@ export default async function handler(
     createdAt: new Date(),
   }));
 
-  const llm = await generateResponse(history, systemPrompt);
+  const turn = await runInterviewTurn(history, systemPrompt);
 
-  // Gate the model's proposed end: bot prose never terminates. Only a genuine
-  // completion or a safety red flag may end the demo.
-  const endInterviewReason = gateProposedEnd(llm.endInterviewReason);
+  // AI-owned completion (approximated statelessly for the demo).
+  const complete =
+    questionsAsked >= MAX_QUESTIONS ||
+    (turn.recommend === "wrap_up" && questionsAsked >= DEMO_MIN);
+
+  if (complete) {
+    return res.status(200).json({
+      message: {
+        role: "assistant",
+        content: `That's everything I needed, ${name}. Thanks for trying the demo, your responses would now go to the hiring team.`,
+      },
+      endInterviewReason: "completed",
+    });
+  }
 
   return res.status(200).json({
-    message: llm.text
-      ? { role: "assistant", content: llm.text }
-      : null,
-    endInterviewReason,
+    message: turn.reply ? { role: "assistant", content: turn.reply } : null,
+    status: "in_progress",
   });
 }
