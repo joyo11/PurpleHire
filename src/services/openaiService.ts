@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { Message } from "@/types/chat";
 import { recordLlm } from "@/lib/observability";
-import { MODELS } from "@/lib/models";
+import { MODELS, FALLBACK_MODEL } from "@/lib/models";
 // OpenAI SDK v4 moduleResolution=bundler quirk: the legacy
 // "openai/resources/chat" subpath isn't in package.json exports, so we
 // import from the explicit completions subpath that IS exported.
@@ -97,18 +97,37 @@ export async function generateResponse(
       ...history,
     ];
 
-    const response = await openai.chat.completions.create({
-      model: MODELS.interview,
+    const createParams = {
       messages: convoMessages,
       temperature: 0.35,
       max_tokens: 500,
       tools: [END_INTERVIEW_TOOL],
-      tool_choice: "auto",
-    });
+      tool_choice: "auto" as const,
+    };
+    let usedModel = MODELS.interview;
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: MODELS.interview,
+        ...createParams,
+      });
+    } catch (primaryErr) {
+      // A newly-set model id may be invalid or still rolling out — never break
+      // a live interview; fall back to a known-good model.
+      console.error(
+        `interview model "${MODELS.interview}" failed, falling back to ${FALLBACK_MODEL}:`,
+        (primaryErr as Error).message,
+      );
+      usedModel = FALLBACK_MODEL;
+      response = await openai.chat.completions.create({
+        model: FALLBACK_MODEL,
+        ...createParams,
+      });
+    }
 
     void recordLlm({
       operation: "interview_turn",
-      model: MODELS.interview,
+      model: usedModel,
       ok: true,
       latencyMs: Date.now() - started,
       promptTokens: response.usage?.prompt_tokens,

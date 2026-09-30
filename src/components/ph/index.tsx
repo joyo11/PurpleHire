@@ -379,9 +379,14 @@ export function PHAvatar({
   if (brand) {
     return (
       <div
-        className={`ph-grad-btn-bg flex items-center justify-center rounded-full font-semibold text-white ${sz}`}
+        className={`ph-grad-btn-bg flex items-center justify-center overflow-hidden rounded-full ${sz}`}
       >
-        {letter}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand-mark.png"
+          alt="PurpleHire"
+          className="h-[68%] w-[68%] object-contain"
+        />
       </div>
     );
   }

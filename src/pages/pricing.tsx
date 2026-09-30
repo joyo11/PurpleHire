@@ -181,7 +181,7 @@ export default function PricingPage({ signedIn, plan, showCanceledNotice }: Prop
                 <Feature>Unlimited roles</Feature>
                 <Feature>Full transcripts + AI scoring</Feature>
                 <Feature>Email candidates directly from your own Gmail</Feature>
-                <Feature>Priority on the upcoming voice-mode launch</Feature>
+                <Feature>Priority support and early access to new features</Feature>
                 <Feature>Cancel any time from the customer portal</Feature>
               </ul>
 

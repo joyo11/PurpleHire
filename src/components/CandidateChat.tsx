@@ -215,16 +215,15 @@ export default function CandidateChat({
     }
   }
 
-  const totalMessages = messages.length;
-
   return (
     <div className="relative flex h-[100dvh] flex-col bg-black text-white">
       {/* HEADER */}
       <header className="flex items-center justify-between border-b border-white/10 bg-black/80 px-4 py-3 backdrop-blur sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/" aria-label="PurpleHire home">
+          {/* Not a link: a candidate mid-interview should not navigate away */}
+          <span aria-label="PurpleHire" className="cursor-default">
             <PHLogo size="md" wordmark={false} />
-          </Link>
+          </span>
           <div className="hidden h-5 w-px bg-white/10 sm:block" />
           <div className="hidden min-w-0 sm:block">
             <div className="truncate text-[13px] font-medium">{roleTitle}</div>
@@ -233,21 +232,22 @@ export default function CandidateChat({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-[12px] text-white/45">
-          <div className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-white/10 sm:block">
-            <div
-              className="ph-grad-btn-bg h-full origin-left transition-[width] duration-700 ease-out"
-              style={{
-                width: `${Math.min(100, 8 + totalMessages * 7)}%`,
-              }}
-            />
-          </div>
-          <span className="font-mono">{totalMessages} msgs</span>
+        <div className="flex items-center gap-1.5 text-[12px] text-emerald-300/80">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="font-medium">Live</span>
         </div>
       </header>
 
       {/* MESSAGES */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-6 sm:px-8"
+        style={{
+          backgroundImage:
+            "radial-gradient(rgba(147,51,234,0.06) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+      >
         <div className="mx-auto flex max-w-[760px] flex-col gap-4">
           {messages.map((m) => {
             const isLiveBot =

@@ -31,8 +31,13 @@ const PRICING: Record<string, { in: number; out: number; perChar?: number }> = {
   "gpt-4.1": { in: 2, out: 8 },
   "gpt-4.1-mini": { in: 0.4, out: 1.6 },
   "gpt-4.1-nano": { in: 0.1, out: 0.4 },
+  // GPT-6 family (Sept 2026). Prices are estimates — update if OpenAI publishes exact.
+  "gpt-6-astra": { in: 5, out: 20 },
+  "gpt-6.1-sol": { in: 2, out: 8 },
+  "gpt-6-luna": { in: 0.3, out: 1.2 },
   "tts-1": { in: 0, out: 0, perChar: 15 }, // $15 / 1M characters
   "tts-1-hd": { in: 0, out: 0, perChar: 30 },
+  "gpt-4o-mini-tts": { in: 0, out: 0, perChar: 12 }, // current default TTS
 };
 
 /* Alert when a single call is slower than this. Cheap, log-based alerting —

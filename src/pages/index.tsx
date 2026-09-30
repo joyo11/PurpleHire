@@ -93,17 +93,23 @@ export default function Home() {
               className="mt-7 flex flex-col gap-2 animate-fm-fade-up sm:mt-9 sm:flex-row sm:items-center sm:gap-3"
               style={{ animationDelay: "180ms" }}
             >
-              <Link href="/signin">
-                <PHButton size="lg" iconRight={<ArrowRight />}>
-                  Sign in to get started
-                </PHButton>
-              </Link>
               <Link href="/demo">
-                <PHButton size="lg" variant="ghost">
+                <PHButton size="lg" iconRight={<ArrowRight />}>
                   Try a sample interview
                 </PHButton>
               </Link>
+              <Link href="/signin">
+                <PHButton size="lg" variant="ghost">
+                  Sign in
+                </PHButton>
+              </Link>
             </div>
+            <p
+              className="mt-3 animate-fm-fade-up text-[13px] text-white/40"
+              style={{ animationDelay: "220ms" }}
+            >
+              No signup needed to try it.
+            </p>
 
           </div>
 
@@ -252,7 +258,7 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-purple-300" />
-                    Priority on the upcoming voice-mode launch
+                    Priority support and early access to new features
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-purple-300" />
@@ -324,9 +330,9 @@ export default function Home() {
         <footer className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-3 px-5 py-7 text-[12px] text-white/45 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-8 sm:text-[13px] lg:px-12">
           <PHLogo size="sm" />
           <div className="flex items-center gap-5 sm:gap-6">
-            <a className="hover:text-white/70">Privacy</a>
-            <a className="hover:text-white/70">Terms</a>
-            <a className="hover:text-white/70">Contact</a>
+            <a href="mailto:shafay11august@gmail.com?subject=PurpleHire%20Privacy" className="hover:text-white/70">Privacy</a>
+            <a href="mailto:shafay11august@gmail.com?subject=PurpleHire%20Terms" className="hover:text-white/70">Terms</a>
+            <a href="mailto:shafay11august@gmail.com?subject=PurpleHire%20Contact" className="hover:text-white/70">Contact</a>
             <span className="font-mono text-white/30">© 2026 PurpleHire</span>
           </div>
         </footer>

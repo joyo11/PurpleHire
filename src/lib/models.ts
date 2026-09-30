@@ -17,8 +17,12 @@
  * the gpt-4.1 family, so the /stats spend numbers keep working after a swap.
  */
 export const MODELS = {
-  interview: process.env.OPENAI_INTERVIEW_MODEL || "gpt-4o",
-  jdAnalysis: process.env.OPENAI_UTILITY_MODEL || "gpt-4o-mini",
-  scoring: process.env.OPENAI_UTILITY_MODEL || "gpt-4o-mini",
+  interview: process.env.OPENAI_INTERVIEW_MODEL || "gpt-6.1-sol",
+  jdAnalysis: process.env.OPENAI_UTILITY_MODEL || "gpt-6.1-sol",
+  scoring: process.env.OPENAI_UTILITY_MODEL || "gpt-6.1-sol",
   tts: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
 } as const;
+
+/* Known-good fallback used if the configured model id is invalid or rolling
+   out, so a live interview never hard-fails on a model error. */
+export const FALLBACK_MODEL = "gpt-4.1";
