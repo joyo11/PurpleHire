@@ -193,9 +193,12 @@ export function PHLogo({
   return (
     <div className={`inline-flex items-center gap-2.5 ${sz}`}>
       {mark && (
-        <div className="ph-grad-btn-bg shadow-glow-purple-sm flex aspect-square h-full items-center justify-center rounded-xl font-semibold text-white">
-          P
-        </div>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/brand-mark.png"
+          alt="PurpleHire"
+          className="h-full w-auto object-contain"
+        />
       )}
       {wordmark && (
         <span className="font-medium tracking-tight text-white">PurpleHire</span>
@@ -230,7 +233,7 @@ export function PHButton({
   disabled,
 }: PHButtonProps) {
   const base =
-    "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition-all duration-200 select-none";
+    "group relative inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tight transition-all duration-150 ease-out select-none will-change-transform hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]";
   const sizes = {
     sm: "h-9 px-4 text-sm",
     md: "h-11 px-5 text-[15px]",

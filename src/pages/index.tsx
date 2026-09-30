@@ -117,49 +117,41 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SOCIAL PROOF */}
-        <section className="border-t border-white/10 px-5 py-12 sm:px-8 sm:py-14 lg:px-12">
+        {/* 3-STEP EXPLAINER (HOW IT WORKS) */}
+        <section className="border-t border-white/10 bg-black/40 px-5 py-14 sm:px-8 sm:py-20 lg:px-12">
           <div className="mx-auto max-w-7xl">
-            <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-white/40">
-              Trusted by teams and candidates at
-            </p>
-            <div className="relative mt-9">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-full max-w-3xl -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  background:
-                    "radial-gradient(50% 65% at 50% 50%, rgba(147,51,234,0.18), rgba(147,51,234,0) 70%)",
-                }}
-              />
-              <div className="relative flex flex-wrap items-center justify-center gap-x-14 gap-y-10 sm:gap-x-24">
-                {[
-                  { src: "/logos/columbia.png", name: "Columbia University" },
-                  { src: "/logos/consult.png", name: "Consult America" },
-                  { src: "/logos/elaichi.png", name: "elaichi co." },
-                  { src: "/logos/devvaults.png", name: "DevVaults" },
-                ].map((l) => (
-                  <div
-                    key={l.name}
-                    className="flex flex-col items-center gap-3"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={l.src}
-                      alt={l.name}
-                      className="h-16 w-auto max-w-[150px] object-contain opacity-95 transition-transform duration-200 hover:scale-105 sm:h-20"
-                    />
-                    <span className="whitespace-nowrap text-[13px] font-medium tracking-tight text-white/55">
-                      {l.name}
-                    </span>
-                  </div>
-                ))}
+            <div className="mb-10 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-end sm:gap-4 lg:mb-12">
+              <div>
+                <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
+                  HOW IT WORKS
+                </div>
+                <h2 className="mt-2 text-[26px] font-medium tracking-tight sm:text-[36px]">
+                  Three steps. About ten minutes.
+                </h2>
+              </div>
+              <div className="text-[13px] text-white/45 sm:text-[14px]">
+                No sourcing. No phone tag. No &ldquo;are you still interested?&rdquo;
               </div>
             </div>
-            <p className="mt-10 text-center text-[14px] text-white/50">
-              <span className="font-mono font-semibold text-white/85">60+</span>{" "}
-              AI interviews run and scored, and counting.
-            </p>
+            <div className="grid gap-3 sm:gap-5 lg:grid-cols-3">
+              {STEPS.map((s) => (
+                <div
+                  key={s.n}
+                  className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/15 hover:bg-white/[0.04] sm:p-7"
+                >
+                  <div className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-gradient-to-b from-purple-400 to-purple-600 transition-transform duration-300 group-hover:scale-y-100" />
+                  <div className="font-mono text-[13px] text-purple-400">
+                    {s.n}
+                  </div>
+                  <div className="mt-4 text-[20px] font-medium tracking-tight sm:mt-5 sm:text-[22px]">
+                    {s.t}
+                  </div>
+                  <p className="mt-2 text-[14px] leading-relaxed text-white/55">
+                    {s.d}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -189,7 +181,7 @@ export default function Home() {
 
             <div className="mt-10 grid gap-4 sm:grid-cols-2">
               {/* FREE */}
-              <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-7">
+              <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 transition-all duration-200 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.04] hover:shadow-[0_16px_50px_-20px_rgba(0,0,0,0.6)] sm:p-7">
                 <div className="flex items-baseline justify-between">
                   <div className="text-[16px] font-medium tracking-tight">
                     Free
@@ -232,7 +224,7 @@ export default function Home() {
               </div>
 
               {/* PRO */}
-              <div className="relative overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-500/[0.10] to-white/[0.01] p-6 shadow-glow-purple-sm sm:p-7">
+              <div className="relative overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-500/[0.10] to-white/[0.01] p-6 shadow-glow-purple-sm transition-all duration-200 hover:-translate-y-1 hover:border-purple-500/50 hover:shadow-glow-purple sm:p-7">
                 <div className="flex items-baseline justify-between">
                   <div className="text-[16px] font-medium tracking-tight">
                     Pro
@@ -282,41 +274,49 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 3-STEP EXPLAINER */}
-        <section className="border-y border-white/10 bg-black/40 px-5 py-14 sm:px-8 sm:py-20 lg:px-12">
+        {/* SOCIAL PROOF */}
+        <section className="border-t border-white/10 px-5 py-12 sm:px-8 sm:py-14 lg:px-12">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-10 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-end sm:gap-4 lg:mb-12">
-              <div>
-                <div className="font-mono text-[11px] tracking-[0.16em] text-white/40">
-                  HOW IT WORKS
-                </div>
-                <h2 className="mt-2 text-[26px] font-medium tracking-tight sm:text-[36px]">
-                  Three steps. About ten minutes.
-                </h2>
-              </div>
-              <div className="text-[13px] text-white/45 sm:text-[14px]">
-                No sourcing. No phone tag. No &ldquo;are you still interested?&rdquo;
+            <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-white/40">
+              Trusted by teams and candidates at
+            </p>
+            <div className="relative mt-9">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-full max-w-3xl -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  background:
+                    "radial-gradient(50% 65% at 50% 50%, rgba(147,51,234,0.18), rgba(147,51,234,0) 70%)",
+                }}
+              />
+              <div className="relative flex flex-wrap items-center justify-center gap-x-14 gap-y-10 sm:gap-x-24">
+                {[
+                  { src: "/logos/columbia.png", name: "Columbia University" },
+                  { src: "/logos/consult.png", name: "Consult America" },
+                  { src: "/logos/elaichi.png", name: "elaichi co." },
+                  { src: "/logos/devvaults.png", name: "DevVaults" },
+                ].map((l) => (
+                  <div
+                    key={l.name}
+                    className="flex flex-col items-center gap-3"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={l.src}
+                      alt={l.name}
+                      className="h-16 w-auto max-w-[150px] object-contain opacity-95 transition-transform duration-200 hover:scale-105 sm:h-20"
+                    />
+                    <span className="whitespace-nowrap text-[13px] font-medium tracking-tight text-white/55">
+                      {l.name}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="grid gap-3 sm:gap-5 lg:grid-cols-3">
-              {STEPS.map((s) => (
-                <div
-                  key={s.n}
-                  className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/15 hover:bg-white/[0.04] sm:p-7"
-                >
-                  <div className="absolute inset-y-0 left-0 w-[3px] origin-top scale-y-0 bg-gradient-to-b from-purple-400 to-purple-600 transition-transform duration-300 group-hover:scale-y-100" />
-                  <div className="font-mono text-[13px] text-purple-400">
-                    {s.n}
-                  </div>
-                  <div className="mt-4 text-[20px] font-medium tracking-tight sm:mt-5 sm:text-[22px]">
-                    {s.t}
-                  </div>
-                  <p className="mt-2 text-[14px] leading-relaxed text-white/55">
-                    {s.d}
-                  </p>
-                </div>
-              ))}
-            </div>
+            <p className="mt-10 text-center text-[14px] text-white/50">
+              <span className="font-mono font-semibold text-white/85">60+</span>{" "}
+              AI interviews run and scored, and counting.
+            </p>
           </div>
         </section>
 
