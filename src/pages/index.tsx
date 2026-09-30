@@ -18,7 +18,7 @@ const STEPS = [
   {
     n: "02",
     t: "We run interviews",
-    d: "PurpleHire chats with every applicant — empathetic, on-brief, never robotic.",
+    d: "PurpleHire chats with every applicant, empathetic, on-brief, never robotic.",
   },
   {
     n: "03",
@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>PurpleHire — AI interviews for any job description</title>
+        <title>PurpleHire: AI interviews for any job description</title>
         <meta
           name="description"
           content="Paste the JD. PurpleHire interviews every applicant, scores them honestly, and hands you the top 5%."
@@ -86,7 +86,7 @@ export default function Home() {
               style={{ animationDelay: "120ms" }}
             >
               Paste the JD. PurpleHire interviews every applicant, scores them
-              honestly, and hands you the top 5% — usually before lunch.
+              honestly, and hands you the top 5%, usually before lunch.
             </p>
 
             <div

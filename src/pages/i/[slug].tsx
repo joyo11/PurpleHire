@@ -108,8 +108,8 @@ export default function CandidatePage({ slug, roleTitle }: Props) {
             {roleTitle}
           </h1>
           <p className="mt-3 text-[14px] leading-relaxed text-white/65 sm:text-[14.5px]">
-            PurpleHire is an AI recruiter. We&apos;ll chat for ~10 minutes about
-            your experience — no trick questions, no take-home. Your responses
+            PurpleHire is an AI recruiter. We&apos;ll have a relaxed chat about
+            your experience, no trick questions, no take-home. Your responses
             go straight to the hiring team.
           </p>
 
@@ -205,7 +205,6 @@ export default function CandidatePage({ slug, roleTitle }: Props) {
               </svg>
               Encrypted in transit
             </div>
-            <div className="font-mono">~10 min</div>
           </div>
         </form>
       </main>
