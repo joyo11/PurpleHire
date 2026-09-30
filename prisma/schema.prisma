@@ -19,6 +19,9 @@ model Conversation {
   mode        String     @default("chat")
   // Proctoring: how many times the candidate left the interview tab.
   tabSwitches Int        @default(0)
+  // Proctoring: large paste events into the answer box (a signal the candidate
+  // may be pasting from an AI tool). Feeds the recruiter's AI-assist risk flag.
+  pasteCount  Int        @default(0)
   metadata    String
   messages    Message[]
   candidateId String?

@@ -9,6 +9,7 @@ import {
   PHTypingDots,
   Send,
 } from "@/components/ph";
+import { LARGE_PASTE_CHARS } from "@/lib/proctoring";
 
 type ChatMessage = {
   id: string;
@@ -458,6 +459,20 @@ export default function CandidateChat({
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend(e);
+                }
+              }}
+              onPaste={(e) => {
+                // Non-invasive anti-cheat: a large paste into the answer box is
+                // the classic "answer from an AI tab" signal. Record it for the
+                // recruiter (best-effort, never blocks the candidate).
+                const pasted = e.clipboardData?.getData("text") ?? "";
+                if (!ended && pasted.length >= LARGE_PASTE_CHARS) {
+                  void fetch("/api/interviews/flag", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ conversationId, type: "paste" }),
+                    keepalive: true,
+                  }).catch(() => {});
                 }
               }}
               rows={1}
