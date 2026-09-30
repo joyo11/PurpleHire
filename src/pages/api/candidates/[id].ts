@@ -3,6 +3,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const DECISIONS = ["shortlisted", "rejected", "maybe"] as const;
+type Decision = (typeof DECISIONS)[number];
+
+function isDecision(v: unknown): v is Decision {
+  return typeof v === "string" && (DECISIONS as readonly string[]).includes(v);
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -17,7 +24,7 @@ export default async function handler(
   }
 
   if (req.method !== "DELETE" && req.method !== "PATCH") {
-    res.setHeader("Allow", "DELETE, PATCH");
+    res.setHeader("Allow", "PATCH, DELETE");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -34,16 +41,47 @@ export default async function handler(
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  // PATCH: toggle the "reviewed" flag for the recruiter.
+  // PATCH: update the "reviewed" flag and/or the recruiter's decision.
   if (req.method === "PATCH") {
-    const reviewed = (req.body?.reviewed ?? true) === true;
+    const body = (req.body ?? {}) as {
+      reviewed?: unknown;
+      decision?: unknown;
+    };
+    const data: { reviewedAt?: Date | null; decision?: Decision | null } = {};
+
+    if ("reviewed" in body) {
+      if (typeof body.reviewed !== "boolean") {
+        return res.status(400).json({ error: "reviewed must be a boolean" });
+      }
+      data.reviewedAt = body.reviewed ? new Date() : null;
+    }
+
+    if ("decision" in body) {
+      if (body.decision === null) {
+        data.decision = null;
+      } else if (isDecision(body.decision)) {
+        data.decision = body.decision;
+      } else {
+        return res.status(400).json({
+          error: "decision must be shortlisted, rejected, maybe, or null",
+        });
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "Nothing to update" });
+    }
+
     const updated = await prisma.candidate.update({
       where: { id: candidate.id },
-      data: { reviewedAt: reviewed ? new Date() : null },
-      select: { reviewedAt: true },
+      data,
+      select: { id: true, decision: true, reviewedAt: true },
     });
+
     return res.status(200).json({
-      reviewedAt: updated.reviewedAt ? updated.reviewedAt.toISOString() : null,
+      id: updated.id,
+      decision: updated.decision,
+      reviewed: updated.reviewedAt !== null,
     });
   }
 

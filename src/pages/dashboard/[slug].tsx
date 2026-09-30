@@ -32,6 +32,7 @@ type CandidateRow = {
   status: "in_progress" | "completed" | "no_conversation";
   endReason: string | null;
   mode: "chat" | "voice";
+  decision: string | null;
 };
 
 type Props = {
@@ -82,10 +83,39 @@ function TrashIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
 }
 
 type FilterKey = "all" | "completed" | "in_progress";
+type DecisionFilterKey = "all" | "shortlisted" | "rejected" | "maybe" | "undecided";
 type SortKey = "score" | "recency";
 
 function firstInitial(name: string) {
   return name.trim()[0]?.toUpperCase() ?? "?";
+}
+
+const DECISION_META: Record<string, { label: string; badge: string }> = {
+  shortlisted: {
+    label: "Shortlisted",
+    badge: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  },
+  rejected: {
+    label: "Rejected",
+    badge: "bg-red-500/15 text-red-300 ring-red-500/30",
+  },
+  maybe: {
+    label: "Maybe",
+    badge: "bg-yellow-500/15 text-yellow-300 ring-yellow-500/30",
+  },
+};
+
+function DecisionBadge({ decision }: { decision: string | null }) {
+  if (!decision) return null;
+  const meta = DECISION_META[decision];
+  if (!meta) return null;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-medium ring-1 ring-inset ${meta.badge}`}
+    >
+      {meta.label}
+    </span>
+  );
 }
 
 export default function RoleDetail({
@@ -96,6 +126,7 @@ export default function RoleDetail({
 }: Props) {
   const [candidates, setCandidates] = useState<CandidateRow[]>(initialCandidates);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [decisionFilter, setDecisionFilter] = useState<DecisionFilterKey>("all");
   const [sort, setSort] = useState<SortKey>("score");
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
@@ -127,11 +158,19 @@ export default function RoleDetail({
   const completedCount = candidates.filter((c) => c.status === "completed").length;
   const inProgressCount = candidates.filter((c) => c.status === "in_progress").length;
 
+  const shortlistedCount = candidates.filter((c) => c.decision === "shortlisted").length;
+  const rejectedCount = candidates.filter((c) => c.decision === "rejected").length;
+  const maybeCount = candidates.filter((c) => c.decision === "maybe").length;
+  const undecidedCount = candidates.filter((c) => !c.decision).length;
+
   const filtered = useMemo(() => {
     let list = candidates.slice();
     if (filter === "completed") list = list.filter((c) => c.status === "completed");
     if (filter === "in_progress")
       list = list.filter((c) => c.status === "in_progress");
+    if (decisionFilter === "undecided") list = list.filter((c) => !c.decision);
+    else if (decisionFilter !== "all")
+      list = list.filter((c) => c.decision === decisionFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -150,7 +189,7 @@ export default function RoleDetail({
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
     return list;
-  }, [candidates, filter, sort, search]);
+  }, [candidates, filter, decisionFilter, sort, search]);
 
   async function copyLink() {
     await navigator.clipboard.writeText(link);
@@ -331,6 +370,59 @@ export default function RoleDetail({
             </button>
           </section>
 
+          {/* DECISION FILTER */}
+          <section className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="flex items-center gap-1 overflow-x-auto rounded-full border border-white/10 bg-white/[0.02] p-1">
+              <PHPill
+                active={decisionFilter === "all"}
+                onClick={() => setDecisionFilter("all")}
+              >
+                All decisions
+              </PHPill>
+              <PHPill
+                active={decisionFilter === "shortlisted"}
+                onClick={() => setDecisionFilter("shortlisted")}
+              >
+                Shortlisted{" "}
+                <span className="ml-1 font-mono text-[11px] text-white/40">
+                  {shortlistedCount}
+                </span>
+              </PHPill>
+              <PHPill
+                active={decisionFilter === "rejected"}
+                onClick={() => setDecisionFilter("rejected")}
+              >
+                Rejected{" "}
+                <span className="ml-1 font-mono text-[11px] text-white/40">
+                  {rejectedCount}
+                </span>
+              </PHPill>
+              <PHPill
+                active={decisionFilter === "maybe"}
+                onClick={() => setDecisionFilter("maybe")}
+              >
+                Maybe{" "}
+                <span className="ml-1 font-mono text-[11px] text-white/40">
+                  {maybeCount}
+                </span>
+              </PHPill>
+              <PHPill
+                active={decisionFilter === "undecided"}
+                onClick={() => setDecisionFilter("undecided")}
+              >
+                Undecided{" "}
+                <span className="ml-1 font-mono text-[11px] text-white/40">
+                  {undecidedCount}
+                </span>
+              </PHPill>
+            </div>
+            <div className="text-[12px] text-white/45">
+              <span className="text-emerald-300">{shortlistedCount} shortlisted</span>
+              {" · "}
+              {maybeCount} maybe · {rejectedCount} rejected
+            </div>
+          </section>
+
           {/* CANDIDATES */}
           {filtered.length === 0 ? (
             <div className="mt-5 rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-12 text-center text-[14px] text-white/50">
@@ -364,6 +456,7 @@ export default function RoleDetail({
                         <div className="flex items-center gap-1.5 truncate text-[14.5px] font-medium text-white">
                           {c.name}
                           {c.mode === "voice" && <VoiceBadge />}
+                          <DecisionBadge decision={c.decision} />
                         </div>
                         <div className="truncate text-[12px] text-white/45">
                           {c.email}
@@ -445,6 +538,7 @@ export default function RoleDetail({
                           <div className="flex items-center gap-1.5 truncate text-[14px] font-medium">
                             {c.name}
                             {c.mode === "voice" && <VoiceBadge />}
+                            <DecisionBadge decision={c.decision} />
                           </div>
                           <div className="truncate text-[11px] text-white/45">
                             {c.email}
@@ -609,6 +703,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
           status,
           endReason: conv?.endReason ?? null,
           mode: conv?.mode === "voice" ? "voice" as const : "chat" as const,
+          decision: c.decision,
         };
       }),
     },

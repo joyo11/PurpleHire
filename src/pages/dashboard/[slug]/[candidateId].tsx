@@ -36,6 +36,7 @@ type Props = {
     score: number | null;
     verdict: string | null;
     reviewedAt: string | null;
+    decision: string | null;
   };
   role: { slug: string; title: string };
   conversation: {
@@ -48,6 +49,40 @@ type Props = {
 
 function firstInitial(name: string) {
   return name.trim()[0]?.toUpperCase() ?? "?";
+}
+
+const DECISION_META: Record<
+  string,
+  { label: string; badge: string; active: string }
+> = {
+  shortlisted: {
+    label: "Shortlisted",
+    badge: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+    active: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
+  },
+  rejected: {
+    label: "Rejected",
+    badge: "bg-red-500/15 text-red-300 ring-red-500/30",
+    active: "border-red-500/40 bg-red-500/15 text-red-300",
+  },
+  maybe: {
+    label: "Maybe",
+    badge: "bg-yellow-500/15 text-yellow-300 ring-yellow-500/30",
+    active: "border-yellow-500/40 bg-yellow-500/15 text-yellow-300",
+  },
+};
+
+function DecisionBadge({ decision }: { decision: string | null }) {
+  if (!decision) return null;
+  const meta = DECISION_META[decision];
+  if (!meta) return null;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${meta.badge}`}
+    >
+      {meta.label}
+    </span>
+  );
 }
 
 function VerdictCallout({
@@ -112,6 +147,8 @@ export default function Transcript({
   const initial = firstInitial(candidate.name);
   const [reviewed, setReviewed] = useState(!!candidate.reviewedAt);
   const [savingReview, setSavingReview] = useState(false);
+  const [decision, setDecision] = useState<string | null>(candidate.decision);
+  const [savingDecision, setSavingDecision] = useState(false);
 
   async function toggleReviewed() {
     if (savingReview) return;
@@ -129,6 +166,26 @@ export default function Transcript({
       setReviewed(!next);
     } finally {
       setSavingReview(false);
+    }
+  }
+
+  async function chooseDecision(next: string) {
+    if (savingDecision) return;
+    const value = decision === next ? null : next;
+    const prev = decision;
+    setDecision(value); // optimistic
+    setSavingDecision(true);
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: value }),
+      });
+      if (!res.ok) setDecision(prev); // revert on failure
+    } catch {
+      setDecision(prev); // rollback
+    } finally {
+      setSavingDecision(false);
     }
   }
 
@@ -156,6 +213,7 @@ export default function Transcript({
     a.remove();
     URL.revokeObjectURL(url);
   }
+
   const conversationStatus =
     conversation?.status === "completed"
       ? `Interview complete · ${conversation.endReason ?? "completed"}`
@@ -229,6 +287,7 @@ export default function Transcript({
                     ✓ Reviewed
                   </span>
                 )}
+                <DecisionBadge decision={decision} />
               </div>
               <div className="mt-1 truncate text-[12px] text-white/45 sm:text-[13px]">
                 {candidate.email} · Interviewed{" "}
@@ -261,6 +320,27 @@ export default function Transcript({
                   Send next-round email
                 </a>
               )}
+              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.02] p-1">
+                {(["shortlisted", "maybe", "rejected"] as const).map((key) => {
+                  const meta = DECISION_META[key];
+                  const active = decision === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => chooseDecision(key)}
+                      disabled={savingDecision}
+                      className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-50 ${
+                        active
+                          ? `border ${meta.active}`
+                          : "border border-transparent text-white/60 hover:bg-white/5 hover:text-white"
+                      }`}
+                      title={active ? `Clear ${meta.label.toLowerCase()}` : meta.label}
+                    >
+                      {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
               <PHButton
                 variant="ghost"
                 size="sm"
@@ -385,6 +465,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         reviewedAt: candidate.reviewedAt
           ? candidate.reviewedAt.toISOString()
           : null,
+        decision: candidate.decision,
       },
       role: { slug: candidate.role.slug, title: candidate.role.title },
       conversation: conv
