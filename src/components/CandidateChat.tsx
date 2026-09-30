@@ -58,6 +58,19 @@ export default function CandidateChat({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [tabSwitches, setTabSwitches] = useState(0);
+
+  // Lightweight proctoring: a browser can't truly lock the screen, but we can
+  // detect when the candidate leaves the interview tab (e.g. to open ChatGPT),
+  // warn them, and count it — a strong deterrent, and recordable for the recruiter.
+  useEffect(() => {
+    if (ended) return;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") setTabSwitches((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [ended]);
   const [error, setError] = useState<string | null>(null);
   const [idleWarning, setIdleWarning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -237,6 +250,13 @@ export default function CandidateChat({
           <span className="font-medium">Live</span>
         </div>
       </header>
+
+      {tabSwitches > 0 && !ended && (
+        <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-2 text-center text-[12.5px] text-yellow-200 sm:px-8">
+          Please stay on this tab. Leaving the interview is recorded for the
+          hiring team{tabSwitches > 1 ? ` (${tabSwitches}×)` : ""}.
+        </div>
+      )}
 
       {/* MESSAGES */}
       <div
