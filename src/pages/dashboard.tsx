@@ -140,6 +140,8 @@ export default function Dashboard({
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [pendingDelete, setPendingDelete] = useState<RoleSummary | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -196,23 +198,28 @@ export default function Dashboard({
     setTimeout(() => setCopiedSlug(null), 1500);
   }
 
-  async function deleteRole(role: RoleSummary) {
-    const summary =
-      role.candidateCount > 0
-        ? `Delete "${role.title}"? This permanently removes ${role.candidateCount} candidate${role.candidateCount === 1 ? "" : "s"} and their transcripts.`
-        : `Delete "${role.title}"?`;
-    if (!confirm(summary)) return;
+  // Opens the styled confirm modal (no native confirm/alert).
+  function deleteRole(role: RoleSummary) {
+    setDeleteError(null);
+    setPendingDelete(role);
+  }
+
+  async function confirmDelete() {
+    const role = pendingDelete;
+    if (!role) return;
     setDeletingId(role.id);
+    setDeleteError(null);
     try {
       const res = await fetch(`/api/roles/${role.id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Could not delete the role.");
+        setDeleteError(data.error || "Could not delete the role.");
         return;
       }
       setRoles((rs) => rs.filter((r) => r.id !== role.id));
+      setPendingDelete(null);
     } catch {
-      alert("Network error. Try again.");
+      setDeleteError("Network error. Try again.");
     } finally {
       setDeletingId(null);
     }
@@ -223,6 +230,56 @@ export default function Dashboard({
       <Head>
         <title>Dashboard · PurpleHire</title>
       </Head>
+
+      {/* Delete confirmation modal — replaces the native confirm()/alert() */}
+      {pendingDelete && (
+        <div
+          className="animate-fm-fade-up fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => deletingId === null && setPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b0b12] p-6 shadow-card-lift sm:p-7"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-500/15 text-red-300 ring-1 ring-inset ring-red-500/30">
+                <TrashIcon />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-[17px] font-medium tracking-tight">
+                  Delete &ldquo;{pendingDelete.title}&rdquo;?
+                </h3>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-white/60">
+                  {pendingDelete.candidateCount > 0
+                    ? `This permanently removes ${pendingDelete.candidateCount} candidate${pendingDelete.candidateCount === 1 ? "" : "s"} and their transcripts. This can't be undone.`
+                    : "This can't be undone."}
+                </p>
+              </div>
+            </div>
+            {deleteError && (
+              <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[13px] text-red-300">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <PHButton
+                variant="ghost"
+                onClick={() => setPendingDelete(null)}
+                disabled={deletingId !== null}
+              >
+                Cancel
+              </PHButton>
+              <PHButton
+                variant="danger"
+                onClick={confirmDelete}
+                disabled={deletingId !== null}
+              >
+                {deletingId !== null ? "Deleting…" : "Delete"}
+              </PHButton>
+            </div>
+          </div>
+        </div>
+      )}
       <main className="ph-radial-purple relative min-h-screen text-white">
         <PHTopBar
           user={{
