@@ -5,10 +5,11 @@ export default function Document() {
   return (
     <Html>
       <Head>
-        {/* Favicon: modern SVG with PNG fallback, plus Apple touch icon */}
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="alternate icon" href="/Purplehire.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/Purplehire.png" />
+        {/* Favicon: new PurpleHire mark */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/icon-16.png" type="image/png" sizes="16x16" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content="#9333ea" />
       </Head>
       <body>

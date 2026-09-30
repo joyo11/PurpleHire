@@ -187,7 +187,7 @@ export function PHLogo({
   mark = true,
   wordmark = true,
 }: PHLogoProps) {
-  const sz = { sm: "h-6 text-base", md: "h-8 text-lg", lg: "h-10 text-xl" }[
+  const sz = { sm: "h-8 text-lg", md: "h-11 text-xl", lg: "h-14 text-2xl" }[
     size
   ];
   return (
