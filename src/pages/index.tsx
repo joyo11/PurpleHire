@@ -304,15 +304,15 @@ export default function Home() {
                 ].map((l) => (
                   <div
                     key={l.name}
-                    className="flex flex-col items-center gap-3"
+                    className="group flex cursor-pointer flex-col items-center gap-3"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={l.src}
                       alt={l.name}
-                      className="h-16 w-auto max-w-[150px] object-contain opacity-95 transition-transform duration-200 hover:scale-105 sm:h-20"
+                      className="h-16 w-auto max-w-[150px] object-contain opacity-95 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:scale-105 sm:h-20"
                     />
-                    <span className="whitespace-nowrap text-[13px] font-medium tracking-tight text-white/55">
+                    <span className="whitespace-nowrap text-[13px] font-medium tracking-tight text-white/55 transition-colors duration-200 group-hover:text-white/80">
                       {l.name}
                     </span>
                   </div>
