@@ -89,6 +89,10 @@ model Role {
   jdText        String      @db.Text
   interviewPlan String      @db.Text
   createdAt     DateTime    @default(now())
+  // Launch options (set in the creation flow, editable on the role page).
+  expiresAt     DateTime?
+  durationMin   Int?
+  allowRetries  Boolean     @default(false)
   recruiterId   String
   recruiter     User        @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
   candidates    Candidate[]
@@ -106,6 +110,10 @@ model Candidate {
   conversations  Conversation[]
   score          Float?
   verdict        String?        @db.Text
+  // Structured evaluation report (JSON of EvaluationReport in
+  // src/lib/evaluationReport.ts): competency breakdown, strengths, concerns,
+  // evidence, per-question analysis, confidence, must-have coverage.
+  report         String?        @db.Text
   scoredAt       DateTime?
   reviewedAt     DateTime?
   // Recruiter decision: null (none) | "shortlisted" | "rejected" | "maybe"
