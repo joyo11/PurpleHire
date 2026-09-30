@@ -1,70 +1,65 @@
 /**
- * Safety net for the known LLM tic where the bot writes an obvious
- * closing line ("really enjoyed our chat", "have a great day") but
- * forgets to fire the end_interview tool in the same turn.
+ * Candidate-intent classifier for the interview-ending state machine.
  *
- * Given the bot's most recent reply and the candidate's most recent
- * message, return an inferred end reason or undefined if the bot
- * didn't actually say goodbye. False positives only end an interview
- * the bot was already trying to end, so the risk is low.
+ * The server (never the model, never the bot's own prose) decides whether a
+ * candidate turn should end the interview. This runs on the candidate's most
+ * recent message and returns one of:
  *
- * Used by both the real interview flow (/api/chat) and the public
- * demo flow (/api/demo/chat) so both behave the same way.
+ *   "explicit_end" — an unambiguous first-person request to end the WHOLE
+ *                    interview ("end the interview", "I withdraw", "I'm done").
+ *                    Honored immediately.
+ *   "leave"        — an AMBIGUOUS "I might be leaving / I'm frustrated / I'd
+ *                    rather not" signal ("no", "not interested", profanity,
+ *                    "can I speak instead"). NEVER ends; routes to a
+ *                    clarification turn offering three choices.
+ *   null           — everything else, including a single declined question
+ *                    ("skip", "next", "I don't know"). The interview continues;
+ *                    the model handles skips conversationally.
+ *
+ * Ambiguity ALWAYS defaults to staying in the interview. A single short reply
+ * can never terminate. Used by /api/chat and /api/demo/chat so both behave the
+ * same way.
  */
-export function inferEndFromText(
-  botText: string,
-  userText: string,
-): string | undefined {
-  const b = botText.toLowerCase();
-  const u = userText.toLowerCase();
+export type CandidateIntent = "explicit_end" | "leave" | null;
 
-  // Reschedule signals from the bot's closing or the candidate's message.
-  // Checked BEFORE the generic wrap-phrase logic because "link stays active"
-  // and "come back whenever" also overlap with generic wrap language.
-  const botSaidReschedule =
-    /(link stays active|come back whenever|come back when you'?re ready|whenever you'?re ready|i'?ll be here)/.test(b);
-  const userAskedReschedule =
-    /(another time|reschedule|come back to this|need a break|is now a bad time|i'?m tired|right now isn'?t|do this later|do this another)/.test(u);
-  if (botSaidReschedule || userAskedReschedule) {
-    if (/totally understand|no worries|sounds good|absolutely/.test(b)) {
-      return "reschedule";
-    }
-  }
+export function classifyCandidateIntent(text: string): CandidateIntent {
+  const n = (text || "").trim().toLowerCase().replace(/’/g, "'");
+  if (!n) return null;
 
-  // A wrap phrase must be an *unambiguous* sign-off. Phrases like "thanks for
-  // taking the time" or "thanks for chatting" were removed: the bot says them
-  // mid-interview ("thanks for taking the time to explain that") and would
-  // falsely end the conversation.
-  const wrapPhrase =
-    /(wrap up|wrapping up|i'?ll end here|best of luck out there|wishing you the best|wrap things up|so i'?ll wrap|let'?s wrap)/.test(b) ||
-    /(recruiter will (review|be in touch|follow up)|recruiter (will|may) reach out)/.test(b) ||
-    /(have a (great|wonderful|nice) day)/.test(b) ||
-    /(we[' ]?ll be in touch|we will be in touch)/.test(b) ||
-    /(all the best in your (job search|career))/.test(b);
+  // EXPLICIT end of the WHOLE interview — honored immediately, no clarification.
+  // Every pattern here must be UNAMBIGUOUS. Anything that could appear inside a
+  // normal answer ("I quit my last job", "I have to go through the data",
+  // "I need to go over the architecture") must NOT live here — those belong in
+  // the ambiguous "leave" bucket (clarify, never auto-end) or return null.
+  const explicitEnd =
+    /\b(end|stop|cancel|quit|terminate|leave)\s+(the|this)\s+(interview|screening|call|session)\b/.test(n) ||
+    /\b(end|stop|cancel|quit)\s+interview\b/.test(n) ||
+    /\bi\s+withdraw\b/.test(n) ||
+    /\bwithdraw\s+my\s+application\b/.test(n) ||
+    /\bi'?m\s+withdrawing\b/.test(n) ||
+    /\bi'?m\s+not\s+interested\s+in\s+(the|this)\s+(job|role|position|opportunity|interview)\b/.test(n) ||
+    /^i'?m\s+done[.!]?$/.test(n);
+  if (explicitEnd) return "explicit_end";
 
-  if (!wrapPhrase) return undefined;
+  // AMBIGUOUS "leaving" signals — NEVER end; route to a clarification turn.
+  const leave =
+    /^(no|nope|nah|no\s*thanks?|not\s*really|no\s*way)[.!]?$/.test(n) ||
+    /\bnot\s+interested\b/.test(n) || // bare, not tied to "the job" above
+    /\b(this\s+is\s+(stupid|pointless|dumb|useless|a\s+waste)|waste\s+of\s+(my\s+)?time|this\s+sucks)\b/.test(n) ||
+    /\b(f+u+c+k|bull\s*shit|wtf|screw\s+this|this\s+is\s+bs)\b/.test(n) ||
+    /\b(can|could)\s+(i|we)\s+(speak|talk|call|do\s+(?:this\s+)?(?:by\s+|over\s+)?(?:a\s+)?(?:voice|phone|call))\b/.test(n) ||
+    /\bi'?d\s+(?:rather|prefer\s+to|like\s+to)\s+(?:speak|talk|call|use\s+voice|do\s+(?:this\s+)?(?:by\s+|over\s+)?(?:voice|phone))\b/.test(n) ||
+    /\b(another|different)\s+(input\s+)?method\b/.test(n) ||
+    /\b(voice|phone\s+call)\s+(instead|please)\b/.test(n) ||
+    /^(i\s+want\s+to\s+stop|can\s+we\s+stop|stop)[.!]?$/.test(n) ||
+    // Whole-message "I have to leave" style signals are AMBIGUOUS (could be the
+    // start of "I have to go through the data every morning"), so they only
+    // match when they ARE essentially the whole message, and then they clarify.
+    /^(i\s+have\s+to\s+go|i\s+need\s+to\s+go|i\s+gotta\s+go|i'?ve\s+got\s+to\s+go|i\s+have\s+to\s+leave|i\s+need\s+to\s+leave|i\s+have\s+to\s+run|gtg|g2g)[.!]?$/.test(n) ||
+    // Bare "I quit" / "I resign" as the whole message is ambiguous; "I quit my
+    // last job in 2021" (a normal answer) must NOT match, hence the anchors.
+    /^i\s+(?:quit|resign)[.!]?$/.test(n);
+  if (leave) return "leave";
 
-  // Only treat as not_interested if the candidate said something *explicit*.
-  // Soft signals like "tired" or "another time" route to reschedule above,
-  // so they won't reach this branch.
-  if (/\b(not interested|don'?t want this|changed my mind|isn'?t for me|lol no|no thanks)\b/.test(u)) {
-    return "not_interested";
-  }
-  if (
-    /(can only discuss|outside what i'?m here|focus.*role|on[- ]topic)/.test(b)
-  ) {
-    return "off_topic";
-  }
-  // Dealbreaker closings: the bot wrapped up because a must-have is missing or
-  // a red flag surfaced. These map to the same reasons the end_interview tool
-  // emits, so downstream scoring treats them consistently.
-  if (
-    /(not (quite )?(the|a) right fit|might not be (the|a) (right )?fit|isn'?t (the|a) (right )?(fit|match)|this (particular )?role (requires|calls for)|not (the|a) match for this role)/.test(b)
-  ) {
-    return "missing_must_have";
-  }
-  if (/(red flag|raises (a )?concern|serious concern|dealbreaker|can'?t move forward)/.test(b)) {
-    return "red_flag_inferred";
-  }
-  return "completed";
+  return null;
 }
