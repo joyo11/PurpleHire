@@ -23,6 +23,8 @@ export const MODELS = {
   tts: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
 } as const;
 
-/* Known-good fallback used if the configured model id is invalid or rolling
-   out, so a live interview never hard-fails on a model error. */
-export const FALLBACK_MODEL = "gpt-4.1";
+/* Fallback chain if the configured model errors (invalid id / rolling out /
+   outage). First the GPT-6 flagship launched just before 6.1-sol, then an
+   always-available last resort so a live interview never hard-fails. */
+export const FALLBACK_MODEL = "gpt-6-astra";
+export const LAST_RESORT_MODEL = "gpt-4.1";

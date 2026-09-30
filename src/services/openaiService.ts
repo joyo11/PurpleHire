@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { Message } from "@/types/chat";
 import { recordLlm } from "@/lib/observability";
-import { MODELS, FALLBACK_MODEL } from "@/lib/models";
+import { MODELS, FALLBACK_MODEL, LAST_RESORT_MODEL } from "@/lib/models";
 // OpenAI SDK v4 moduleResolution=bundler quirk: the legacy
 // "openai/resources/chat" subpath isn't in package.json exports, so we
 // import from the explicit completions subpath that IS exported.
@@ -104,26 +104,32 @@ export async function generateResponse(
       tools: [END_INTERVIEW_TOOL],
       tool_choice: "auto" as const,
     };
-    let usedModel = MODELS.interview;
+    // Try the configured model, then fall through the chain so a live interview
+    // never hard-fails if a model id is invalid or rolling out.
+    const modelChain = [
+      ...new Set([MODELS.interview, FALLBACK_MODEL, LAST_RESORT_MODEL]),
+    ];
+    let usedModel = modelChain[0];
     let response;
-    try {
-      response = await openai.chat.completions.create({
-        model: MODELS.interview,
-        ...createParams,
-      });
-    } catch (primaryErr) {
-      // A newly-set model id may be invalid or still rolling out — never break
-      // a live interview; fall back to a known-good model.
-      console.error(
-        `interview model "${MODELS.interview}" failed, falling back to ${FALLBACK_MODEL}:`,
-        (primaryErr as Error).message,
-      );
-      usedModel = FALLBACK_MODEL;
-      response = await openai.chat.completions.create({
-        model: FALLBACK_MODEL,
-        ...createParams,
-      });
+    let lastErr: unknown;
+    for (const m of modelChain) {
+      try {
+        response = await openai.chat.completions.create({
+          model: m,
+          ...createParams,
+        });
+        usedModel = m;
+        lastErr = undefined;
+        break;
+      } catch (err) {
+        lastErr = err;
+        console.error(
+          `interview model "${m}" failed:`,
+          (err as Error).message,
+        );
+      }
     }
+    if (!response) throw lastErr;
 
     void recordLlm({
       operation: "interview_turn",

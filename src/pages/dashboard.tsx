@@ -434,7 +434,7 @@ export default function Dashboard({
                     return (
                       <div
                         key={r.id}
-                        className="group grid grid-cols-12 items-center gap-4 border-b border-white/5 px-6 py-4 transition-all last:border-b-0 hover:-translate-y-px hover:border-white/15 hover:bg-white/[0.025]"
+                        className="group grid grid-cols-12 items-center gap-4 border-b border-white/5 px-6 py-4 transition-all duration-200 last:border-b-0 hover:-translate-y-0.5 hover:border-purple-500/25 hover:bg-purple-500/[0.04] hover:shadow-[0_10px_30px_-14px_rgba(147,51,234,0.5)]"
                       >
                         <div className="col-span-3 flex items-center gap-3">
                           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] font-mono text-[11px] text-white/55 ring-1 ring-inset ring-white/10">
@@ -484,7 +484,7 @@ export default function Dashboard({
                             </span>
                             <button
                               onClick={() => copyLink(r.slug)}
-                              className={`ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${
+                              className={`ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-150 hover:scale-105 active:scale-90 ${
                                 copiedSlug === r.slug
                                   ? "text-emerald-300"
                                   : "text-white/55 hover:bg-white/10 hover:text-white"
@@ -509,16 +509,16 @@ export default function Dashboard({
                             onClick={() => deleteRole(r)}
                             disabled={deletingId === r.id}
                             title="Delete interview"
-                            className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                            className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-all duration-150 hover:scale-110 hover:bg-red-500/15 hover:text-red-300 active:scale-90 disabled:opacity-40"
                           >
                             <TrashIcon />
                           </button>
                           <Link
                             href={`/dashboard/${r.slug}`}
-                            className="inline-flex items-center gap-1 text-[13px] text-white/55 transition-colors hover:text-white"
+                            className="group inline-flex items-center gap-1 text-[13px] text-white/55 transition-all duration-150 hover:gap-1.5 hover:text-white"
                           >
                             View
-                            <ChevronRight className="h-3 w-3" />
+                            <ChevronRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5" />
                           </Link>
                         </div>
                       </div>
