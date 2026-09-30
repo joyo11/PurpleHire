@@ -58,6 +58,11 @@ export default function CandidateChat({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [ended, setEnded] = useState(false);
+  // The interview is not ending, but the bot is asking how to proceed after an
+  // ambiguous signal. We surface three recovery chips and keep the composer
+  // live so the candidate can simply keep typing instead.
+  const [clarifying, setClarifying] = useState(false);
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [idleWarning, setIdleWarning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -205,11 +210,47 @@ export default function CandidateChat({
         const withoutOpt = m.filter((msg) => msg.id !== optimisticId);
         return [...withoutOpt, ...(data.messages || [])];
       });
+      setClarifying(data.status === "clarifying");
+      setConfirmEnd(false);
       if (data.status === "completed") setEnded(true);
     } catch (e) {
       setError((e as Error).message);
       setMessages((m) => m.filter((msg) => msg.id !== optimisticId));
       setInput(text);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // Recovery chips (Continue with text / Skip this question / End interview).
+  // Each sends a structured intent to the server, which owns end authority.
+  async function sendAction(action: "continue" | "skip" | "end") {
+    if (sending || ended) return;
+    setError(null);
+    setClarifying(false);
+    setConfirmEnd(false);
+    // Lock previous bot messages from re-typing.
+    setMessages((m) =>
+      m.map((msg) =>
+        msg.role === "assistant" && !msg.id.startsWith("seen-")
+          ? { ...msg, id: `seen-${msg.id}` }
+          : msg,
+      ),
+    );
+    setSending(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send");
+      setMessages((m) => [...m, ...(data.messages || [])]);
+      setClarifying(data.status === "clarifying");
+      if (data.status === "completed") setEnded(true);
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setSending(false);
     }
@@ -307,6 +348,55 @@ export default function CandidateChat({
 
       {/* COMPOSER */}
       <footer className="border-t border-white/10 bg-black/80 px-4 py-3 backdrop-blur sm:px-8">
+        {clarifying && !ended && (
+          <div className="mx-auto mb-2.5 flex max-w-[760px] flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => sendAction("continue")}
+              disabled={sending}
+              className="rounded-full border border-purple-500/40 bg-purple-500/10 px-3.5 py-1.5 text-[13px] font-medium text-purple-100 transition-all hover:bg-purple-500/20 disabled:opacity-40"
+            >
+              Continue with text
+            </button>
+            <button
+              type="button"
+              onClick={() => sendAction("skip")}
+              disabled={sending}
+              className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-[13px] font-medium text-white/80 transition-all hover:bg-white/10 disabled:opacity-40"
+            >
+              Skip this question
+            </button>
+            {!confirmEnd ? (
+              <button
+                type="button"
+                onClick={() => setConfirmEnd(true)}
+                disabled={sending}
+                className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-[13px] font-medium text-white/60 transition-all hover:bg-white/10 disabled:opacity-40"
+              >
+                End interview
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => sendAction("end")}
+                  disabled={sending}
+                  className="rounded-full border border-red-500/40 bg-red-500/15 px-3.5 py-1.5 text-[13px] font-medium text-red-200 transition-all hover:bg-red-500/25 disabled:opacity-40"
+                >
+                  Confirm end
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmEnd(false)}
+                  disabled={sending}
+                  className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-[13px] font-medium text-white/60 transition-all hover:bg-white/10 disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+        )}
         <form onSubmit={handleSend} className="mx-auto max-w-[760px]">
           <div
             className={`flex items-end gap-2 rounded-2xl border bg-white/[0.02] px-4 py-3 transition-all ${

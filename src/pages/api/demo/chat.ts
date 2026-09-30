@@ -2,7 +2,21 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { generateResponse } from "@/services/openaiService";
 import { buildInterviewSystemPrompt } from "@/lib/interviewPrompt";
 import { getSampleRole } from "@/lib/sampleRoles";
-import { inferEndFromText } from "@/lib/inferEndFromText";
+import { classifyCandidateIntent } from "@/lib/inferEndFromText";
+
+// Copy for the clarification turn — mirrors /api/chat so the demo behaves
+// identically (an ambiguous "leaving" signal never ends the interview).
+const CLARIFY_MESSAGE =
+  "No problem. We can keep going in text, skip this question, or wrap up here — what works?";
+
+// End authority is server-owned: bot prose never terminates. Only a genuine
+// completion or a safety red flag the model proposes may end a turn.
+function gateProposedEnd(reason: string | undefined): string | undefined {
+  if (!reason) return undefined;
+  if (reason === "completed") return reason;
+  if (reason.startsWith("red_flag_")) return reason;
+  return undefined;
+}
 
 /**
  * Ephemeral chat endpoint for the public demo. No DB writes — the
@@ -26,10 +40,11 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { roleKey, candidateName, messages } = req.body as {
+  const { roleKey, candidateName, messages, action } = req.body as {
     roleKey?: string;
     candidateName?: string;
     messages?: ClientMessage[];
+    action?: "continue" | "skip" | "end";
   };
 
   if (!roleKey || !candidateName?.trim() || !Array.isArray(messages)) {
@@ -62,6 +77,36 @@ export default async function handler(
     plan: sample.plan,
   });
 
+  const name = candidateName.trim().slice(0, MAX_NAME_LEN);
+  const closing = `Thanks for taking the time today, ${name}. Take care!`;
+
+  // Server-authoritative ending (mirrors /api/chat). The End-interview chip is
+  // a confirmed, explicit end. A typed message is classified: an explicit
+  // whole-interview end is honored; an ambiguous "leaving" signal NEVER ends
+  // and routes to a clarification turn; everything else continues normally.
+  if (action === "end") {
+    return res.status(200).json({
+      message: { role: "assistant", content: closing },
+      endInterviewReason: "candidate_ended",
+    });
+  }
+  if (!action) {
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const intent = classifyCandidateIntent(lastUser?.content ?? "");
+    if (intent === "explicit_end") {
+      return res.status(200).json({
+        message: { role: "assistant", content: closing },
+        endInterviewReason: "candidate_ended",
+      });
+    }
+    if (intent === "leave") {
+      return res.status(200).json({
+        message: { role: "assistant", content: CLARIFY_MESSAGE },
+        status: "clarifying",
+      });
+    }
+  }
+
   const history = messages.map((m, i) => ({
     id: `demo-${i}`,
     content: m.content,
@@ -72,15 +117,9 @@ export default async function handler(
 
   const llm = await generateResponse(history, systemPrompt);
 
-  // Safety net: if the LLM wrote an obvious closing line but forgot to
-  // fire the end_interview tool, infer the reason from the candidate's
-  // latest message and end on our side. Mirrors /api/chat behavior so
-  // the demo flow can't leak past a goodbye.
-  let endInterviewReason = llm.endInterviewReason;
-  if (!endInterviewReason && llm.text) {
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    endInterviewReason = inferEndFromText(llm.text, lastUser?.content ?? "");
-  }
+  // Gate the model's proposed end: bot prose never terminates. Only a genuine
+  // completion or a safety red flag may end the demo.
+  const endInterviewReason = gateProposedEnd(llm.endInterviewReason);
 
   return res.status(200).json({
     message: llm.text
