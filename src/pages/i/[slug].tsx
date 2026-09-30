@@ -14,6 +14,7 @@ import {
 type Props = {
   slug: string;
   roleTitle: string;
+  expired: boolean;
 };
 
 type InterviewMode = "chat" | "voice";
@@ -25,7 +26,7 @@ type StartedState = {
   mode: InterviewMode;
 };
 
-export default function CandidatePage({ slug, roleTitle }: Props) {
+export default function CandidatePage({ slug, roleTitle, expired }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<InterviewMode>("chat");
@@ -59,6 +60,29 @@ export default function CandidatePage({ slug, roleTitle }: Props) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (expired && !started) {
+    return (
+      <>
+        <Head>
+          <title>Interview closed · PurpleHire</title>
+        </Head>
+        <main className="relative grid min-h-screen place-items-center overflow-hidden bg-black px-5 text-white">
+          <div className="pointer-events-none absolute inset-0 ph-grid-bg opacity-30" />
+          <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center">
+            <h1 className="text-[20px] font-medium tracking-tight">
+              This interview link is closed
+            </h1>
+            <p className="mt-2 text-[14px] leading-relaxed text-white/55">
+              The window for {roleTitle} has ended and it is no longer accepting
+              new candidates. If you think this is a mistake, reach out to the
+              person who invited you.
+            </p>
+          </div>
+        </main>
+      </>
+    );
   }
 
   if (started) {
@@ -251,10 +275,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   const role = await prisma.role.findUnique({
     where: { slug },
-    select: { title: true },
+    select: { title: true, expiresAt: true },
   });
 
   if (!role) return { notFound: true };
 
-  return { props: { slug, roleTitle: role.title } };
+  const expired = role.expiresAt ? role.expiresAt.getTime() < Date.now() : false;
+
+  return { props: { slug, roleTitle: role.title, expired } };
 };

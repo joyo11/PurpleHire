@@ -7,6 +7,12 @@ import { signOut } from "next-auth/react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildNextRoundMailto } from "@/lib/inviteEmail";
+import { parseReport } from "@/lib/evaluationReport";
+import OverallResult from "@/components/report/OverallResult";
+import CompetencyBreakdown from "@/components/report/CompetencyBreakdown";
+import StrengthsConcerns from "@/components/report/StrengthsConcerns";
+import EvidenceList from "@/components/report/EvidenceList";
+import PerQuestionList from "@/components/report/PerQuestionList";
 import ScoreExplainer from "@/components/ScoreExplainer";
 import {
   PHTopBar,
@@ -38,6 +44,7 @@ type Props = {
     verdict: string | null;
     reviewedAt: string | null;
     decision: string | null;
+    report: string | null;
   };
   role: { slug: string; title: string };
   conversation: {
@@ -150,6 +157,7 @@ export default function Transcript({
   messages,
 }: Props) {
   const initial = firstInitial(candidate.name);
+  const report = parseReport(candidate.report);
   const [reviewed, setReviewed] = useState(!!candidate.reviewedAt);
   const [savingReview, setSavingReview] = useState(false);
   const [decision, setDecision] = useState<string | null>(candidate.decision);
@@ -366,16 +374,27 @@ export default function Transcript({
             </div>
           </div>
 
-          <div className="mt-5 sm:mt-6">
-            <VerdictCallout
-              score={candidate.score}
-              verdict={candidate.verdict}
-            />
-          </div>
-
-          <div className="mt-3">
-            <ScoreExplainer />
-          </div>
+          {report ? (
+            <div className="mt-5 flex flex-col gap-4 sm:mt-6">
+              <OverallResult report={report} score={candidate.score} />
+              <CompetencyBreakdown report={report} />
+              <StrengthsConcerns report={report} />
+              <EvidenceList report={report} />
+              <PerQuestionList report={report} />
+            </div>
+          ) : (
+            <>
+              <div className="mt-5 sm:mt-6">
+                <VerdictCallout
+                  score={candidate.score}
+                  verdict={candidate.verdict}
+                />
+              </div>
+              <div className="mt-3">
+                <ScoreExplainer />
+              </div>
+            </>
+          )}
 
           {/* Transcript */}
           <section className="mt-8 sm:mt-10">
@@ -475,6 +494,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
           ? candidate.reviewedAt.toISOString()
           : null,
         decision: candidate.decision,
+        report: candidate.report ?? null,
       },
       role: { slug: candidate.role.slug, title: candidate.role.title },
       conversation: conv

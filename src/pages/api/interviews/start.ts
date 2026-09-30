@@ -36,11 +36,18 @@ export default async function handler(
 
   const role = await prisma.role.findUnique({
     where: { slug },
-    select: { id: true, title: true, recruiterId: true },
+    select: { id: true, title: true, recruiterId: true, expiresAt: true },
   });
 
   if (!role) {
     return res.status(404).json({ error: "Interview link not found." });
+  }
+
+  // Launch option: expired links no longer accept new candidates.
+  if (role.expiresAt && role.expiresAt.getTime() < Date.now()) {
+    return res
+      .status(403)
+      .json({ error: "This interview link has closed and is no longer accepting candidates." });
   }
 
   // Free-plan quota gate. We block a NEW interview from starting if the

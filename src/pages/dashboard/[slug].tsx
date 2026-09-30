@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
 import { GetServerSideProps } from "next";
 import { getServerSession } from "next-auth/next";
@@ -8,11 +9,18 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildNextRoundMailto } from "@/lib/inviteEmail";
 import {
+  parseReport,
+  recommendationFromScore,
+  type Recommendation,
+} from "@/lib/evaluationReport";
+import {
   PHTopBar,
   PHButton,
   PHPill,
   PHFitBadge,
   PHAvatar,
+  PHInput,
+  PHTextarea,
   Copy,
   Check,
   Download,
@@ -29,18 +37,22 @@ type CandidateRow = {
   createdAt: string;
   score: number | null;
   verdict: string | null;
+  report: string | null;
   status: "in_progress" | "completed" | "no_conversation";
   endReason: string | null;
   mode: "chat" | "voice";
   decision: string | null;
+  reviewedAt: string | null;
 };
 
 type Props = {
   user: { name: string | null; email: string | null; image: string | null };
   role: {
+    id: string;
     slug: string;
     title: string;
     jdText: string;
+    interviewPlan: string;
     createdAt: string;
   };
   baseUrl: string;
@@ -118,12 +130,150 @@ function DecisionBadge({ decision }: { decision: string | null }) {
   );
 }
 
+const REC_META: Record<Recommendation, string> = {
+  "Strong match": "text-emerald-300",
+  "Possible match": "text-teal-300",
+  "Weak match": "text-yellow-300",
+  "Not enough evidence": "text-white/40",
+};
+
+/** The recommendation label for a candidate: prefer the stored report's own
+ *  recommendation, else derive it from the numeric score. */
+function recommendationFor(c: CandidateRow): Recommendation {
+  const report = parseReport(c.report);
+  return report?.recommendation ?? recommendationFromScore(c.score);
+}
+
+function RecommendationCell({ c }: { c: CandidateRow }) {
+  if (c.status === "in_progress") {
+    return <span className="text-[12px] italic text-white/35">Pending</span>;
+  }
+  const rec = recommendationFor(c);
+  return (
+    <span className={`text-[12.5px] font-medium ${REC_META[rec]}`}>{rec}</span>
+  );
+}
+
+function StatusCell({ c }: { c: CandidateRow }) {
+  if (c.decision) {
+    return <DecisionBadge decision={c.decision} />;
+  }
+  if (c.status === "in_progress") {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-purple-300">
+        <span className="h-1.5 w-1.5 animate-fm-pulse-dot rounded-full bg-purple-500" />
+        In progress
+      </span>
+    );
+  }
+  const report = parseReport(c.report);
+  if (report?.incomplete || (c.status === "completed" && c.score === null)) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[10.5px] font-medium text-white/60 ring-1 ring-inset ring-white/15">
+        Incomplete
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-purple-500/10 px-2 py-0.5 text-[10.5px] font-medium text-purple-200 ring-1 ring-inset ring-purple-500/25">
+      Needs review
+    </span>
+  );
+}
+
+/** One "item per line" text block parsed into a trimmed string array. */
+function linesToArray(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+/** The interview plan stored on the role. Known fields are the ones the
+ *  scorer + interview prompt read; any extra keys are preserved on save. */
+type PlanShape = {
+  summary?: string;
+  must_haves?: string[];
+  nice_to_haves?: string[];
+  skills_to_probe?: string[];
+  red_flags?: string[];
+  [key: string]: unknown;
+};
+
+function parsePlan(raw: string): PlanShape {
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      return obj as PlanShape;
+    }
+  } catch {
+    // fall through
+  }
+  return {};
+}
+
+function planArray(plan: PlanShape, key: string): string[] {
+  const v = plan[key];
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+/** Trim the key signal to a readable length without cutting mid-word too
+ *  aggressively. */
+function truncateSignal(text: string, max = 96): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
+/** Score cell: X.X badge for a scored candidate, an "ongoing" marker while the
+ *  interview runs, else "Incomplete". */
+function ScoreCell({ c }: { c: CandidateRow }) {
+  if (c.status === "completed" && c.score !== null) {
+    return <PHFitBadge score={c.score} animated />;
+  }
+  if (c.status === "in_progress") {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-purple-300">
+        <span className="h-1.5 w-1.5 animate-fm-pulse-dot rounded-full bg-purple-500" />
+        ongoing
+      </span>
+    );
+  }
+  return (
+    <span className="font-mono text-[12px] text-white/40">Incomplete</span>
+  );
+}
+
+/** Key signal cell: the report headline, gracefully truncated. */
+function KeySignalCell({ c }: { c: CandidateRow }) {
+  const report = parseReport(c.report);
+  const signal = report?.keySignal?.trim();
+  if (signal) {
+    return (
+      <span
+        className="block text-[13px] leading-relaxed text-white/65 line-clamp-2"
+        title={signal}
+      >
+        {truncateSignal(signal)}
+      </span>
+    );
+  }
+  return (
+    <span className="text-[12.5px] italic text-white/35">
+      {c.status === "in_progress" ? "Interview in progress" : "No signal yet"}
+    </span>
+  );
+}
+
 export default function RoleDetail({
   user,
   role,
   baseUrl,
   candidates: initialCandidates,
 }: Props) {
+  const router = useRouter();
   const [candidates, setCandidates] = useState<CandidateRow[]>(initialCandidates);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilterKey>("all");
@@ -132,6 +282,84 @@ export default function RoleDetail({
   const [copied, setCopied] = useState(false);
   const [copiedJd, setCopiedJd] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // --- Edit role (JD + interview plan) ---
+  const initialPlan = useMemo(() => parsePlan(role.interviewPlan), [role.interviewPlan]);
+  const [editing, setEditing] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState(role.title);
+  const [editJd, setEditJd] = useState(role.jdText);
+  const [editSummary, setEditSummary] = useState(initialPlan.summary ?? "");
+  const [editMustHaves, setEditMustHaves] = useState(
+    planArray(initialPlan, "must_haves").join("\n"),
+  );
+  const [editNiceToHaves, setEditNiceToHaves] = useState(
+    planArray(initialPlan, "nice_to_haves").join("\n"),
+  );
+  const [editCompetencies, setEditCompetencies] = useState(
+    planArray(initialPlan, "skills_to_probe").join("\n"),
+  );
+  const [editQuestions, setEditQuestions] = useState(
+    planArray(initialPlan, "red_flags").join("\n"),
+  );
+
+  function openEditor() {
+    setEditError(null);
+    setEditTitle(role.title);
+    setEditJd(role.jdText);
+    setEditSummary(initialPlan.summary ?? "");
+    setEditMustHaves(planArray(initialPlan, "must_haves").join("\n"));
+    setEditNiceToHaves(planArray(initialPlan, "nice_to_haves").join("\n"));
+    setEditCompetencies(planArray(initialPlan, "skills_to_probe").join("\n"));
+    setEditQuestions(planArray(initialPlan, "red_flags").join("\n"));
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!editTitle.trim()) {
+      setEditError("Title cannot be empty.");
+      return;
+    }
+    if (!editJd.trim()) {
+      setEditError("Job description cannot be empty.");
+      return;
+    }
+    // Preserve any unknown plan keys; override the fields we edit.
+    const nextPlan: PlanShape = {
+      ...initialPlan,
+      summary: editSummary.trim(),
+      must_haves: linesToArray(editMustHaves),
+      nice_to_haves: linesToArray(editNiceToHaves),
+      skills_to_probe: linesToArray(editCompetencies),
+      red_flags: linesToArray(editQuestions),
+    };
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/roles/${role.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          jdText: editJd.trim(),
+          interviewPlan: nextPlan,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error || "Could not save changes. Try again.");
+        return;
+      }
+      setEditing(false);
+      // Re-run getServerSideProps so the page reflects the saved role.
+      router.replace(router.asPath, undefined, { scroll: false });
+    } catch {
+      setEditError("Network error. Try again.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function deleteCandidate(c: CandidateRow) {
     if (!confirm(`Delete ${c.name}'s interview and transcript permanently?`))
@@ -269,6 +497,9 @@ export default function RoleDetail({
               </div>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
+              <PHButton variant="ghost" size="sm" onClick={openEditor}>
+                Edit role
+              </PHButton>
               <PHButton
                 variant="ghost"
                 size="sm"
@@ -298,20 +529,32 @@ export default function RoleDetail({
               </div>
               <div className="min-w-0">
                 <div className="text-[12px] text-white/45">
-                  Share with candidates
+                  Candidate interview link
                 </div>
                 <div className="truncate font-mono text-[13px] text-white/85">
                   {linkShort}
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 sm:hidden">
+              <PHButton variant="ghost" size="sm" onClick={openEditor}>
+                Edit role
+              </PHButton>
               <PHButton
                 onClick={copyLink}
                 size="sm"
                 icon={copied ? <Check /> : <Copy />}
               >
-                {copied ? "Copied" : "Copy link"}
+                {copied ? "Copied" : "Copy candidate link"}
+              </PHButton>
+            </div>
+            <div className="hidden items-center justify-end gap-2 sm:flex">
+              <PHButton
+                onClick={copyLink}
+                size="sm"
+                icon={copied ? <Check /> : <Copy />}
+              >
+                {copied ? "Copied" : "Copy candidate link"}
               </PHButton>
             </div>
           </section>
@@ -435,28 +678,25 @@ export default function RoleDetail({
               {/* Desktop table */}
               <section className="mt-5 hidden overflow-hidden rounded-3xl border border-white/10 lg:block">
                 <div className="grid grid-cols-12 gap-4 border-b border-white/10 bg-white/[0.02] px-6 py-3 text-[11px] uppercase tracking-[0.14em] text-white/40">
-                  <div className="col-span-1">#</div>
                   <div className="col-span-3">Candidate</div>
                   <div className="col-span-1">Score</div>
-                  <div className="col-span-5">AI verdict</div>
+                  <div className="col-span-2">Recommendation</div>
+                  <div className="col-span-2">Key signal</div>
+                  <div className="col-span-2">Status</div>
                   <div className="col-span-2 text-right">Actions</div>
                 </div>
-                {filtered.map((c, i) => (
+                {filtered.map((c) => (
                   <div
                     key={c.id}
                     className="group relative grid grid-cols-12 items-center gap-4 border-b border-white/5 px-6 py-4 transition-all last:border-b-0 hover:bg-white/[0.025]"
                   >
                     <div className="pointer-events-none absolute inset-y-0 left-0 w-[3px] origin-left scale-x-0 bg-gradient-to-b from-purple-400 to-purple-600 transition-transform duration-200 group-hover:scale-x-100" />
-                    <div className="col-span-1 font-mono text-[12px] text-white/35">
-                      {String(i + 1).padStart(2, "0")}
-                    </div>
                     <div className="col-span-3 flex items-center gap-3">
                       <PHAvatar letter={firstInitial(c.name)} size="md" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 truncate text-[14.5px] font-medium text-white">
                           {c.name}
                           {c.mode === "voice" && <VoiceBadge />}
-                          <DecisionBadge decision={c.decision} />
                         </div>
                         <div className="truncate text-[12px] text-white/45">
                           {c.email}
@@ -464,29 +704,18 @@ export default function RoleDetail({
                       </div>
                     </div>
                     <div className="col-span-1">
-                      {c.status === "completed" && c.score !== null ? (
-                        <PHFitBadge score={c.score} animated />
-                      ) : c.status === "in_progress" ? (
-                        <span className="inline-flex items-center gap-1.5 font-mono text-[12px] text-purple-300">
-                          <span className="h-1.5 w-1.5 animate-fm-pulse-dot rounded-full bg-purple-500" />
-                          ongoing
-                        </span>
-                      ) : (
-                        <span className="font-mono text-[12px] text-white/30">
-                          —
-                        </span>
-                      )}
+                      <ScoreCell c={c} />
                     </div>
-                    <div className="col-span-5 text-[13px] leading-relaxed text-white/65 line-clamp-2">
-                      {c.verdict ?? (
-                        <span className="italic text-white/35">
-                          {c.status === "in_progress"
-                            ? "Interview in progress"
-                            : "Awaiting score…"}
-                        </span>
-                      )}
+                    <div className="col-span-2">
+                      <RecommendationCell c={c} />
                     </div>
-                    <div className="col-span-2 flex justify-end gap-1.5">
+                    <div className="col-span-2">
+                      <KeySignalCell c={c} />
+                    </div>
+                    <div className="col-span-2">
+                      <StatusCell c={c} />
+                    </div>
+                    <div className="col-span-2 flex items-center justify-end gap-1.5">
                       {c.score !== null && c.score >= PASS_THRESHOLD && (
                         <a
                           href={buildNextRoundMailto({
@@ -494,7 +723,7 @@ export default function RoleDetail({
                             roleTitle: role.title,
                             recruiterFirstName: user.name?.split(" ")[0] ?? null,
                           })}
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[12px] text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[12px] text-emerald-300 transition-colors hover:bg-emerald-500/20"
                           title="Send next-round email"
                         >
                           <MailIcon />
@@ -505,7 +734,7 @@ export default function RoleDetail({
                         href={`/dashboard/${role.slug}/${c.id}`}
                         className="inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1.5 text-[12px] text-white/70 transition-colors hover:bg-white/5 hover:text-white"
                       >
-                        Transcript
+                        View report
                         <ChevronRight className="h-3 w-3" />
                       </Link>
                       <button
@@ -538,24 +767,13 @@ export default function RoleDetail({
                           <div className="flex items-center gap-1.5 truncate text-[14px] font-medium">
                             {c.name}
                             {c.mode === "voice" && <VoiceBadge />}
-                            <DecisionBadge decision={c.decision} />
                           </div>
                           <div className="truncate text-[11px] text-white/45">
                             {c.email}
                           </div>
                         </div>
                       </Link>
-                      {c.status === "completed" && c.score !== null ? (
-                        <PHFitBadge score={c.score} />
-                      ) : c.status === "in_progress" ? (
-                        <span className="font-mono text-[11px] text-purple-300">
-                          ongoing
-                        </span>
-                      ) : (
-                        <span className="font-mono text-[11px] text-white/30">
-                          —
-                        </span>
-                      )}
+                      <ScoreCell c={c} />
                       <button
                         onClick={() => deleteCandidate(c)}
                         disabled={deletingId === c.id}
@@ -565,11 +783,20 @@ export default function RoleDetail({
                         <TrashIcon />
                       </button>
                     </div>
-                    {c.verdict && (
-                      <p className="mt-2 text-[12px] leading-relaxed text-white/55 line-clamp-2">
-                        {c.verdict}
-                      </p>
-                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <RecommendationCell c={c} />
+                      <StatusCell c={c} />
+                    </div>
+                    <div className="mt-2">
+                      <KeySignalCell c={c} />
+                    </div>
+                    <Link
+                      href={`/dashboard/${role.slug}/${c.id}`}
+                      className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-purple-300 transition-colors hover:text-purple-200"
+                    >
+                      View report
+                      <ChevronRight className="h-3 w-3" />
+                    </Link>
                     {c.score !== null && c.score >= PASS_THRESHOLD && (
                       <a
                         href={buildNextRoundMailto({
@@ -620,6 +847,137 @@ export default function RoleDetail({
             </div>
           </section>
         </section>
+
+        {editing && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-8"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget && !savingEdit) setEditing(false);
+            }}
+          >
+            <div className="my-auto w-full max-w-[720px] rounded-3xl border border-white/10 bg-[#0f0b16] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
+                <div>
+                  <h2 className="text-[16px] font-medium tracking-tight text-white">
+                    Edit role
+                  </h2>
+                  <p className="mt-0.5 text-[12px] text-white/45">
+                    Changes apply to new interviews. Completed scores are not
+                    recomputed.
+                  </p>
+                </div>
+                <button
+                  onClick={() => !savingEdit && setEditing(false)}
+                  disabled={savingEdit}
+                  aria-label="Close editor"
+                  className="grid h-8 w-8 place-items-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  >
+                    <path d="M4 4l8 8M12 4l-8 8" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+                <PHInput
+                  label="Role title"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="e.g. Senior Frontend Engineer"
+                />
+
+                <PHTextarea
+                  label="Job description"
+                  value={editJd}
+                  onChange={(e) => setEditJd(e.target.value)}
+                  rows={8}
+                  count={editJd.length}
+                  countMax={20000}
+                  placeholder="Paste the job description…"
+                />
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.015] p-4 sm:p-5">
+                  <h3 className="text-[13px] font-medium text-white/80">
+                    Interview plan
+                  </h3>
+                  <p className="mt-0.5 text-[12px] text-white/45">
+                    One item per line. These guide what the interview probes and
+                    how candidates are scored.
+                  </p>
+                  <div className="mt-4 space-y-4">
+                    <PHTextarea
+                      label="Summary"
+                      value={editSummary}
+                      onChange={(e) => setEditSummary(e.target.value)}
+                      rows={2}
+                      placeholder="One-sentence summary of the role"
+                    />
+                    <PHTextarea
+                      label="Must-haves"
+                      value={editMustHaves}
+                      onChange={(e) => setEditMustHaves(e.target.value)}
+                      rows={4}
+                      placeholder={"Required skill or experience\nOne per line"}
+                    />
+                    <PHTextarea
+                      label="Nice-to-haves"
+                      value={editNiceToHaves}
+                      onChange={(e) => setEditNiceToHaves(e.target.value)}
+                      rows={4}
+                      placeholder={"Bonus skill or experience\nOne per line"}
+                    />
+                    <PHTextarea
+                      label="Competencies to probe"
+                      value={editCompetencies}
+                      onChange={(e) => setEditCompetencies(e.target.value)}
+                      rows={4}
+                      placeholder={"Topic the interview should test\nOne per line"}
+                    />
+                    <PHTextarea
+                      label="Questions and red flags to watch"
+                      value={editQuestions}
+                      onChange={(e) => setEditQuestions(e.target.value)}
+                      rows={4}
+                      placeholder={"Signal or dealbreaker to watch for\nOne per line"}
+                    />
+                  </div>
+                </div>
+
+                {editError && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-300">
+                    {editError}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-white/10 px-5 py-4 sm:px-6">
+                <PHButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditing(false)}
+                  disabled={savingEdit}
+                >
+                  Cancel
+                </PHButton>
+                <PHButton
+                  size="sm"
+                  onClick={saveEdit}
+                  state={savingEdit ? "loading" : "default"}
+                  disabled={savingEdit}
+                >
+                  {savingEdit ? "Saving" : "Save changes"}
+                </PHButton>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );
@@ -680,9 +1038,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         image: session.user.image ?? null,
       },
       role: {
+        id: role.id,
         slug: role.slug,
         title: role.title,
         jdText: role.jdText,
+        interviewPlan: role.interviewPlan,
         createdAt: role.createdAt.toISOString(),
       },
       baseUrl: `${protocol}://${host}`,
@@ -700,10 +1060,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
           createdAt: c.createdAt.toISOString(),
           score: c.score,
           verdict: c.verdict,
+          report: c.report,
           status,
           endReason: conv?.endReason ?? null,
           mode: conv?.mode === "voice" ? "voice" as const : "chat" as const,
           decision: c.decision,
+          reviewedAt: c.reviewedAt ? c.reviewedAt.toISOString() : null,
         };
       }),
     },
