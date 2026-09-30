@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useState } from "react";
 import { GetServerSideProps } from "next";
 import { getServerSession } from "next-auth/next";
 import { signOut } from "next-auth/react";
@@ -34,9 +35,14 @@ type Props = {
     createdAt: string;
     score: number | null;
     verdict: string | null;
+    reviewedAt: string | null;
   };
   role: { slug: string; title: string };
-  conversation: { status: string; endReason: string | null } | null;
+  conversation: {
+    status: string;
+    endReason: string | null;
+    tabSwitches: number;
+  } | null;
   messages: Msg[];
 };
 
@@ -104,6 +110,27 @@ export default function Transcript({
   messages,
 }: Props) {
   const initial = firstInitial(candidate.name);
+  const [reviewed, setReviewed] = useState(!!candidate.reviewedAt);
+  const [savingReview, setSavingReview] = useState(false);
+
+  async function toggleReviewed() {
+    if (savingReview) return;
+    const next = !reviewed;
+    setSavingReview(true);
+    setReviewed(next); // optimistic
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewed: next }),
+      });
+      if (!res.ok) setReviewed(!next); // revert on failure
+    } catch {
+      setReviewed(!next);
+    } finally {
+      setSavingReview(false);
+    }
+  }
 
   function exportTranscript() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
@@ -189,6 +216,19 @@ export default function Transcript({
                 {candidate.score !== null && (
                   <PHFitBadge score={candidate.score} />
                 )}
+                {conversation && conversation.tabSwitches > 0 && (
+                  <span
+                    title="Times the candidate left the interview tab"
+                    className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-[11px] font-medium text-yellow-300 ring-1 ring-inset ring-yellow-500/30"
+                  >
+                    ⚠ Left tab {conversation.tabSwitches}×
+                  </span>
+                )}
+                {reviewed && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
+                    ✓ Reviewed
+                  </span>
+                )}
               </div>
               <div className="mt-1 truncate text-[12px] text-white/45 sm:text-[13px]">
                 {candidate.email} · Interviewed{" "}
@@ -229,8 +269,14 @@ export default function Transcript({
               >
                 Export
               </PHButton>
-              <PHButton size="sm" icon={<Check />}>
-                Mark reviewed
+              <PHButton
+                size="sm"
+                variant={reviewed ? "secondary" : "ghost"}
+                icon={<Check />}
+                onClick={toggleReviewed}
+                disabled={savingReview}
+              >
+                {reviewed ? "Reviewed" : "Mark reviewed"}
               </PHButton>
             </div>
           </div>
@@ -336,10 +382,17 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         createdAt: candidate.createdAt.toISOString(),
         score: candidate.score,
         verdict: candidate.verdict,
+        reviewedAt: candidate.reviewedAt
+          ? candidate.reviewedAt.toISOString()
+          : null,
       },
       role: { slug: candidate.role.slug, title: candidate.role.title },
       conversation: conv
-        ? { status: conv.status, endReason: conv.endReason }
+        ? {
+            status: conv.status,
+            endReason: conv.endReason,
+            tabSwitches: conv.tabSwitches,
+          }
         : null,
       messages:
         conv?.messages.map((m) => ({

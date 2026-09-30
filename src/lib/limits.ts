@@ -37,6 +37,24 @@ async function monthlyCompletedFor(userId: string): Promise<number> {
   });
 }
 
+// Abuse cap: max interviews a free-plan team may START (not complete) per
+// month. Generous vs the 10 completed cap, but blocks runaway OpenAI cost.
+const FREE_PLAN_MONTHLY_STARTED = 40;
+
+/** Count interviews STARTED this calendar month for this recruiter's
+ * candidates (regardless of completion). Backs the abuse cap. */
+async function monthlyStartedFor(userId: string): Promise<number> {
+  const startOfMonth = new Date();
+  startOfMonth.setUTCDate(1);
+  startOfMonth.setUTCHours(0, 0, 0, 0);
+  return prisma.conversation.count({
+    where: {
+      createdAt: { gte: startOfMonth },
+      candidate: { is: { role: { is: { recruiterId: userId } } } },
+    },
+  });
+}
+
 /** Check whether the role's owning recruiter is allowed to admit one
  * more interview today. Called from /api/interviews/start before we
  * create the Candidate + Conversation rows. */
@@ -81,7 +99,13 @@ export async function checkInterviewQuota(args: {
   }
 
   const used = await monthlyCompletedFor(args.recruiterId);
-  const allowed = used < FREE_PLAN_MONTHLY_INTERVIEWS;
+  const started = await monthlyStartedFor(args.recruiterId);
+  // Two free-plan caps: the value cap (completed interviews) and an abuse cap
+  // on STARTED interviews, so a bad actor can't run up unbounded OpenAI cost
+  // with interviews that never complete (which the completed-count misses).
+  const overCompleted = used >= FREE_PLAN_MONTHLY_INTERVIEWS;
+  const overStarted = started >= FREE_PLAN_MONTHLY_STARTED;
+  const allowed = !overCompleted && !overStarted;
   return {
     plan: "free",
     isPro: false,
@@ -90,6 +114,8 @@ export async function checkInterviewQuota(args: {
     allowed,
     reason: allowed
       ? undefined
-      : "This team has used all 10 free interviews this month. The recruiter needs to upgrade to Pro for unlimited interviews.",
+      : overStarted
+        ? "This team has hit the monthly limit on started interviews. The recruiter needs to upgrade to Pro."
+        : "This team has used all 10 free interviews this month. The recruiter needs to upgrade to Pro for unlimited interviews.",
   };
 }

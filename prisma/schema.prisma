@@ -17,6 +17,8 @@ model Conversation {
   // "chat" (default) or "voice" — set at /api/interviews/start, used to
   // render the right candidate UI and show a 🎤 badge in recruiter inbox.
   mode        String     @default("chat")
+  // Proctoring: how many times the candidate left the interview tab.
+  tabSwitches Int        @default(0)
   metadata    String
   messages    Message[]
   candidateId String?
@@ -105,6 +107,7 @@ model Candidate {
   score          Float?
   verdict        String?        @db.Text
   scoredAt       DateTime?
+  reviewedAt     DateTime?
 
   @@index([roleId])
 }

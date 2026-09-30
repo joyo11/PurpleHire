@@ -66,11 +66,20 @@ export default function CandidateChat({
   useEffect(() => {
     if (ended) return;
     const onVis = () => {
-      if (document.visibilityState === "hidden") setTabSwitches((n) => n + 1);
+      if (document.visibilityState === "hidden") {
+        setTabSwitches((n) => n + 1);
+        // Best-effort: record it for the recruiter.
+        void fetch("/api/interviews/flag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId }),
+          keepalive: true,
+        }).catch(() => {});
+      }
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [ended]);
+  }, [ended, conversationId]);
   const [error, setError] = useState<string | null>(null);
   const [idleWarning, setIdleWarning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);

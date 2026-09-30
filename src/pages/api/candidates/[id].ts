@@ -16,8 +16,8 @@ export default async function handler(
     return res.status(400).json({ error: "Missing candidate id" });
   }
 
-  if (req.method !== "DELETE") {
-    res.setHeader("Allow", "DELETE");
+  if (req.method !== "DELETE" && req.method !== "PATCH") {
+    res.setHeader("Allow", "DELETE, PATCH");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -34,8 +34,21 @@ export default async function handler(
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  const conversationIds = candidate.conversations.map((c) => c.id);
+  // PATCH: toggle the "reviewed" flag for the recruiter.
+  if (req.method === "PATCH") {
+    const reviewed = (req.body?.reviewed ?? true) === true;
+    const updated = await prisma.candidate.update({
+      where: { id: candidate.id },
+      data: { reviewedAt: reviewed ? new Date() : null },
+      select: { reviewedAt: true },
+    });
+    return res.status(200).json({
+      reviewedAt: updated.reviewedAt ? updated.reviewedAt.toISOString() : null,
+    });
+  }
 
+  // DELETE: remove the candidate + its conversations/messages.
+  const conversationIds = candidate.conversations.map((c) => c.id);
   await prisma.$transaction(async (tx) => {
     if (conversationIds.length) {
       await tx.message.deleteMany({
