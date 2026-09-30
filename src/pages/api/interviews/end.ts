@@ -20,18 +20,13 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { conversationId, reason } = req.body as {
+  const { conversationId } = req.body as {
     conversationId?: string;
-    reason?: string;
   };
 
   if (!conversationId) {
     return res.status(400).json({ error: "conversationId is required" });
   }
-
-  const safeReason = (reason && /^[a-z_]{1,32}$/i.test(reason))
-    ? reason
-    : "inactive";
 
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -40,26 +35,31 @@ export default async function handler(
   if (!conv) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (conv.status === "completed") {
-    return res.status(200).json({ status: "completed", endReason: null });
+  // Terminal states are left untouched (idempotent).
+  if (conv.status === "completed" || conv.status === "left_early") {
+    return res.status(200).json({ status: conv.status });
   }
 
+  // Idle/interrupted -> DISCONNECTED, which is resumable. We do NOT mark it
+  // completed: a refresh, network blip, or closed tab must not destroy an
+  // interview. If the candidate returns, /api/chat resumes it. `reason` from an
+  // explicit leave is handled in /api/chat (status left_early), not here.
   await prisma.conversation.update({
     where: { id: conv.id },
     data: {
-      status: "completed",
-      endReason: safeReason,
+      status: "disconnected",
+      endReason: "disconnected",
       updatedAt: new Date(),
     },
   });
 
-  // Best-effort scoring — even partial transcripts get a score so the
-  // recruiter sees something useful instead of a blank candidate row.
+  // Best-effort provisional scoring so a recruiter sees partial evidence (marked
+  // incomplete). If the candidate resumes and finishes, it is re-scored.
   try {
     await scoreInterview(conv.id);
   } catch (err) {
-    console.error("scoreInterview failed for ended conversation", err);
+    console.error("scoreInterview failed for disconnected conversation", err);
   }
 
-  return res.status(200).json({ status: "completed", endReason: safeReason });
+  return res.status(200).json({ status: "disconnected", endReason: "disconnected" });
 }

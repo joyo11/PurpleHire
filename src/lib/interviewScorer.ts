@@ -38,6 +38,15 @@ const CONFIDENCES: Confidence[] = ["high", "medium", "low"];
 /** End reasons that signal an interview cut short rather than run to completion. */
 const EARLY_END_REASONS = new Set(["candidate_ended", "inactive", "turn_limit"]);
 
+/** End reasons that ALWAYS mean the interview is incomplete, regardless of how
+ *  many questions were answered: the candidate explicitly left, or the session
+ *  was interrupted (disconnected/idle). These must never yield a numeric score. */
+const FORCE_INCOMPLETE_REASONS = new Set([
+  "candidate_left",
+  "disconnected",
+  "inactive",
+]);
+
 /** Count candidate turns that carry real content (not a one-word "ok" / blank). */
 function countSubstantiveAnswers(messages: TranscriptMessage[]): number {
   return messages.filter(
@@ -52,6 +61,7 @@ function looksIncomplete(
   messages: TranscriptMessage[],
   endReason: string | null,
 ): boolean {
+  if (endReason && FORCE_INCOMPLETE_REASONS.has(endReason)) return true;
   const substantive = countSubstantiveAnswers(messages);
   if (substantive < 3) return true;
   if (endReason && EARLY_END_REASONS.has(endReason) && substantive < 4)
@@ -341,6 +351,30 @@ export async function scoreInterview(conversationId: string): Promise<void> {
     endReason: conversation.endReason,
   });
   if (!result) return;
+
+  // Deterministic evidence gaps from the server-authoritative coverage map:
+  // list must-have competencies the interview never gathered enough evidence on,
+  // so the recruiter report is explicit about what was NOT assessed (rather than
+  // relying on the model to notice). Sourced from truth (metadata), not the LLM.
+  try {
+    const meta = JSON.parse(conversation.metadata || "{}") as {
+      coverage?: Record<string, string>;
+    };
+    const coverage = meta.coverage ?? {};
+    const mustHaves = plan?.must_haves ?? [];
+    const gaps = mustHaves.filter((_, i) => {
+      const ev = coverage[String(i)];
+      return ev !== "some" && ev !== "strong";
+    });
+    if (gaps.length && mustHaves.length) {
+      const gapNote = `Evidence gaps: the interview did not gather sufficient evidence on ${gaps.join(", ")}.`;
+      if (!result.report.concerns.some((c) => c.startsWith("Evidence gaps:"))) {
+        result.report.concerns = [gapNote, ...result.report.concerns];
+      }
+    }
+  } catch {
+    // best-effort; if metadata is unreadable, skip the deterministic gap note.
+  }
 
   await prisma.candidate.update({
     where: { id: conversation.candidate.id },

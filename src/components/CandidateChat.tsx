@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   PHLogo,
   PHAvatar,
@@ -17,10 +16,15 @@ type ChatMessage = {
   content: string;
 };
 
+type Phase = "welcome" | "active" | "ended" | "left";
+
 type Props = {
   conversationId: string;
   candidateName: string;
   roleTitle: string;
+  /** Resume-on-reload: prior transcript + where the interview was. */
+  initialMessages?: ChatMessage[];
+  initialStatus?: "welcome" | "in_progress" | "disconnected";
 };
 
 /** Reveal an assistant message character-by-character at ~28 cps. */
@@ -54,22 +58,50 @@ export default function CandidateChat({
   conversationId,
   candidateName,
   roleTitle,
+  initialMessages,
+  initialStatus,
 }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const resuming = !!(initialMessages && initialMessages.length);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    resuming
+      ? initialMessages!.map((m, i) => ({
+          ...m,
+          // Mark prior messages "seen-" so they don't re-type on resume.
+          id: m.id?.startsWith("seen-") ? m.id : `seen-${i}-${m.id ?? "m"}`,
+        }))
+      : [],
+  );
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [ended, setEnded] = useState(false);
+  const [phase, setPhase] = useState<Phase>(
+    resuming ? (initialStatus === "welcome" ? "welcome" : "active") : "welcome",
+  );
   const [tabSwitches, setTabSwitches] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [idleWarning, setIdleWarning] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
-  // Lightweight proctoring: a browser can't truly lock the screen, but we can
-  // detect when the candidate leaves the interview tab (e.g. to open ChatGPT),
-  // warn them, and count it — a strong deterrent, and recordable for the recruiter.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initRef = useRef(false);
+  const idleTimerRef = useRef<number | null>(null);
+  const endTimerRef = useRef<number | null>(null);
+
+  const isTerminal = phase === "ended" || phase === "left";
+  const interactive = !isTerminal;
+  const showSkip = phase === "active" && !sending;
+
+  const IDLE_WARN_MS = 5 * 60 * 1000;
+  const IDLE_END_MS = 10 * 60 * 1000;
+
+  // Proctoring: detect leaving the interview tab (best-effort, never blocking).
   useEffect(() => {
-    if (ended) return;
+    if (isTerminal) return;
     const onVis = () => {
       if (document.visibilityState === "hidden") {
         setTabSwitches((n) => n + 1);
-        // Best-effort: record it for the recruiter.
         void fetch("/api/interviews/flag", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -80,36 +112,8 @@ export default function CandidateChat({
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [ended, conversationId]);
+  }, [isTerminal, conversationId]);
 
-  // The interview is not ending, but the bot is asking how to proceed after an
-  // ambiguous signal. We surface three recovery chips and keep the composer
-  // live so the candidate can simply keep typing instead.
-  const [clarifying, setClarifying] = useState(false);
-  const [confirmEnd, setConfirmEnd] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [idleWarning, setIdleWarning] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const initRef = useRef(false);
-  const idleTimerRef = useRef<number | null>(null);
-  const endTimerRef = useRef<number | null>(null);
-
-  // Idle thresholds.
-  const IDLE_WARN_MS = 5 * 60 * 1000; // 5 minutes -> show "still there?"
-  const IDLE_END_MS = 10 * 60 * 1000; // 10 minutes -> auto-end
-
-  // Auto-grow textarea to fit its content (capped by max-h).
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = `${ta.scrollHeight}px`;
-  }, [input]);
-
-  // Idle timer: every time messages change, reset the warning/end timers.
-  // If 5 min pass with no new activity, show a "still there?" banner.
-  // If 10 min pass, auto-end the interview.
   function clearIdleTimers() {
     if (idleTimerRef.current !== null) {
       window.clearTimeout(idleTimerRef.current);
@@ -121,40 +125,43 @@ export default function CandidateChat({
     }
   }
 
-  async function autoEndInterview() {
+  // Idle -> pause (server marks it "disconnected", which is resumable). We do
+  // NOT end the interview: typing again picks up where they left off.
+  const pauseInterview = useCallback(async () => {
     try {
-      const res = await fetch("/api/interviews/end", {
+      await fetch("/api/interviews/end", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, reason: "inactive" }),
+        body: JSON.stringify({ conversationId }),
       });
-      if (res.ok) {
-        setEnded(true);
-        setIdleWarning(false);
-      }
     } catch {
-      // network failed — try again next time something changes
+      // ignore; resuming still works
     }
-  }
+    setPaused(true);
+    setIdleWarning(false);
+  }, [conversationId]);
 
   useEffect(() => {
     clearIdleTimers();
     setIdleWarning(false);
-    if (ended) return;
-
-    idleTimerRef.current = window.setTimeout(() => {
-      setIdleWarning(true);
-    }, IDLE_WARN_MS);
-
-    endTimerRef.current = window.setTimeout(() => {
-      autoEndInterview();
-    }, IDLE_END_MS);
-
+    if (isTerminal) return;
+    idleTimerRef.current = window.setTimeout(
+      () => setIdleWarning(true),
+      IDLE_WARN_MS,
+    );
+    endTimerRef.current = window.setTimeout(pauseInterview, IDLE_END_MS);
     return clearIdleTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, ended, conversationId]);
+  }, [messages, isTerminal]);
 
-  // Type out only the most recently arrived assistant message.
+  // Auto-grow textarea.
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  }, [input]);
+
   const lastAssistantId = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") return messages[i].id;
@@ -162,14 +169,17 @@ export default function CandidateChat({
     return null;
   })();
   const liveBotMessage = messages.find((m) => m.id === lastAssistantId);
-  const liveBotIsNew = liveBotMessage && !ended && !liveBotMessage.id.startsWith("seen-");
+  const liveBotIsNew =
+    liveBotMessage && !isTerminal && !liveBotMessage.id.startsWith("seen-");
   const typed = useTypewriter(
     liveBotIsNew && liveBotMessage ? liveBotMessage.content : "",
   );
 
+  // Initial greeting (skipped when resuming an existing transcript).
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
+    if (resuming) return;
     (async () => {
       setSending(true);
       try {
@@ -181,13 +191,14 @@ export default function CandidateChat({
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to start");
         setMessages(data.messages || []);
-        if (data.status === "completed") setEnded(true);
+        applyStatus(data.status);
       } catch (e) {
         setError((e as Error).message);
       } finally {
         setSending(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
   useEffect(() => {
@@ -197,46 +208,56 @@ export default function CandidateChat({
     });
   }, [messages, sending, typed]);
 
+  function applyStatus(status: string | undefined) {
+    if (status === "completed") setPhase("ended");
+    else if (status === "left_early") setPhase("left");
+    else if (status === "welcome") setPhase("welcome");
+    else if (status === "in_progress") setPhase("active");
+    else if (status === "confirm_leave") setLeaveOpen(true);
+  }
+
+  function markSeen(list: ChatMessage[]): ChatMessage[] {
+    return list.map((msg) =>
+      msg.role === "assistant" && !msg.id.startsWith("seen-")
+        ? { ...msg, id: `seen-${msg.id}` }
+        : msg,
+    );
+  }
+
+  async function post(body: Record<string, unknown>) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, ...body }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong");
+    return data as {
+      messages?: ChatMessage[];
+      status?: string;
+    };
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || sending || ended) return;
-
+    if (!input.trim() || sending || !interactive) return;
     const text = input.trim();
     setInput("");
     setError(null);
+    setPaused(false);
 
     const optimisticId = `tmp-${Date.now()}`;
-    const optimistic: ChatMessage = {
-      id: optimisticId,
-      role: "user",
-      content: text,
-    };
-    // Lock previous bot messages from re-typing.
     setMessages((m) =>
-      m.map((msg) =>
-        msg.role === "assistant" && !msg.id.startsWith("seen-")
-          ? { ...msg, id: `seen-${msg.id}` }
-          : msg,
-      ).concat(optimistic),
+      markSeen(m).concat({ id: optimisticId, role: "user", content: text }),
     );
     setSending(true);
-
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, message: text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send");
-
-      setMessages((m) => {
-        const withoutOpt = m.filter((msg) => msg.id !== optimisticId);
-        return [...withoutOpt, ...(data.messages || [])];
-      });
-      setClarifying(data.status === "clarifying");
-      setConfirmEnd(false);
-      if (data.status === "completed") setEnded(true);
+      const data = await post({ message: text });
+      setMessages((m) => [
+        ...m.filter((msg) => msg.id !== optimisticId),
+        ...(data.messages || []),
+      ]);
+      applyStatus(data.status);
     } catch (e) {
       setError((e as Error).message);
       setMessages((m) => m.filter((msg) => msg.id !== optimisticId));
@@ -246,37 +267,36 @@ export default function CandidateChat({
     }
   }
 
-  // Recovery chips (Continue with text / Skip this question / End interview).
-  // Each sends a structured intent to the server, which owns end authority.
-  async function sendAction(action: "continue" | "skip" | "end") {
-    if (sending || ended) return;
+  async function handleSkip() {
+    if (sending || phase !== "active") return;
     setError(null);
-    setClarifying(false);
-    setConfirmEnd(false);
-    // Lock previous bot messages from re-typing.
-    setMessages((m) =>
-      m.map((msg) =>
-        msg.role === "assistant" && !msg.id.startsWith("seen-")
-          ? { ...msg, id: `seen-${msg.id}` }
-          : msg,
-      ),
-    );
+    setPaused(false);
+    setMessages((m) => markSeen(m));
     setSending(true);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, action }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send");
+      const data = await post({ action: "skip" });
       setMessages((m) => [...m, ...(data.messages || [])]);
-      setClarifying(data.status === "clarifying");
-      if (data.status === "completed") setEnded(true);
+      applyStatus(data.status);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function confirmLeave() {
+    if (leaving) return;
+    setLeaving(true);
+    setError(null);
+    try {
+      const data = await post({ action: "leave" });
+      setMessages((m) => [...markSeen(m), ...(data.messages || [])]);
+      setLeaveOpen(false);
+      setPhase("left");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLeaving(false);
     }
   }
 
@@ -285,7 +305,6 @@ export default function CandidateChat({
       {/* HEADER */}
       <header className="flex items-center justify-between border-b border-white/10 bg-black/80 px-4 py-3 backdrop-blur sm:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          {/* Not a link: a candidate mid-interview should not navigate away */}
           <span aria-label="PurpleHire" className="cursor-default">
             <PHLogo size="md" wordmark={false} />
           </span>
@@ -297,13 +316,26 @@ export default function CandidateChat({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 text-[12px] text-emerald-300/80">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span className="font-medium">Live</span>
+        <div className="flex items-center gap-4">
+          {!isTerminal && (
+            <div className="flex items-center gap-1.5 text-[12px] text-emerald-300/80">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="font-medium">In progress</span>
+            </div>
+          )}
+          {!isTerminal && (
+            <button
+              type="button"
+              onClick={() => setLeaveOpen(true)}
+              className="rounded-full px-2.5 py-1 text-[12px] text-white/40 transition-all duration-150 hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white/80 active:scale-95"
+            >
+              Leave interview
+            </button>
+          )}
         </div>
       </header>
 
-      {tabSwitches > 0 && !ended && (
+      {tabSwitches > 0 && !isTerminal && (
         <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-2 text-center text-[12.5px] text-yellow-200 sm:px-8">
           Please stay on this tab. Leaving the interview is recorded for the
           hiring team{tabSwitches > 1 ? ` (${tabSwitches}×)` : ""}.
@@ -325,10 +357,7 @@ export default function CandidateChat({
             const isLiveBot =
               m.role === "assistant" && m.id === lastAssistantId && liveBotIsNew;
             return (
-              <PHMessage
-                key={m.id}
-                from={m.role === "user" ? "candidate" : "bot"}
-              >
+              <PHMessage key={m.id} from={m.role === "user" ? "candidate" : "bot"}>
                 {isLiveBot ? (
                   <>
                     {typed}
@@ -351,14 +380,21 @@ export default function CandidateChat({
             </p>
           )}
 
-          {idleWarning && !ended && (
-            <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-[13px] text-yellow-200">
-              Still there? We&apos;ll wrap up the interview automatically in a
-              few minutes if no reply.
+          {paused && !isTerminal && (
+            <div className="rounded-2xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-[13px] text-white/70">
+              Your interview is paused. Type below to pick up right where you left
+              off, nothing is lost.
             </div>
           )}
 
-          {ended && (
+          {idleWarning && !paused && !isTerminal && (
+            <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5 text-[13px] text-yellow-200">
+              Still there? We&apos;ll pause the interview if there&apos;s no reply
+              for a while, you can always come back to it.
+            </div>
+          )}
+
+          {phase === "ended" && (
             <div className="mt-6 overflow-hidden rounded-3xl border border-purple-500/40 bg-gradient-to-br from-purple-500/[0.12] via-purple-500/[0.04] to-transparent p-5 shadow-glow-purple animate-fm-fade-up animate-fm-pulse-glow sm:p-6">
               <div className="flex items-center gap-3">
                 <PHAvatar letter="P" brand size="md" />
@@ -367,10 +403,23 @@ export default function CandidateChat({
                     Interview complete
                   </div>
                   <div className="text-[13px] text-white/65">
-                    Thanks, {candidateName}. Your summary is on its way to the
-                    hiring team. Feel free to close this tab.
+                    Thanks, {candidateName}. Your responses have been submitted to
+                    the hiring team. Feel free to close this tab.
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {phase === "left" && (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-white/15 bg-white/[0.03] p-5 animate-fm-fade-up sm:p-6">
+              <div className="text-[16px] font-medium sm:text-[18px]">
+                Interview left
+              </div>
+              <div className="mt-1 text-[13px] text-white/60">
+                Thanks for your time, {candidateName}. This interview was marked
+                incomplete. If you left by mistake, contact the person who invited
+                you.
               </div>
             </div>
           )}
@@ -379,59 +428,10 @@ export default function CandidateChat({
 
       {/* COMPOSER */}
       <footer className="border-t border-white/10 bg-black/80 px-4 py-3 backdrop-blur sm:px-8">
-        {clarifying && !ended && (
-          <div className="mx-auto mb-2.5 flex max-w-[760px] flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => sendAction("continue")}
-              disabled={sending}
-              className="rounded-full border border-purple-500/40 bg-purple-500/10 px-3.5 py-1.5 text-[13px] font-medium text-purple-100 transition-all hover:bg-purple-500/20 disabled:opacity-40"
-            >
-              Continue with text
-            </button>
-            <button
-              type="button"
-              onClick={() => sendAction("skip")}
-              disabled={sending}
-              className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-[13px] font-medium text-white/80 transition-all hover:bg-white/10 disabled:opacity-40"
-            >
-              Skip this question
-            </button>
-            {!confirmEnd ? (
-              <button
-                type="button"
-                onClick={() => setConfirmEnd(true)}
-                disabled={sending}
-                className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-[13px] font-medium text-white/60 transition-all hover:bg-white/10 disabled:opacity-40"
-              >
-                End interview
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => sendAction("end")}
-                  disabled={sending}
-                  className="rounded-full border border-red-500/40 bg-red-500/15 px-3.5 py-1.5 text-[13px] font-medium text-red-200 transition-all hover:bg-red-500/25 disabled:opacity-40"
-                >
-                  Confirm end
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmEnd(false)}
-                  disabled={sending}
-                  className="rounded-full border border-white/15 bg-white/[0.03] px-3.5 py-1.5 text-[13px] font-medium text-white/60 transition-all hover:bg-white/10 disabled:opacity-40"
-                >
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-        )}
         <form onSubmit={handleSend} className="mx-auto max-w-[760px]">
           <div
             className={`flex items-end gap-2 rounded-2xl border bg-white/[0.02] px-4 py-3 transition-all ${
-              ended
+              !interactive
                 ? "border-white/10 opacity-60"
                 : "border-white/10 focus-within:border-purple-500/40 focus-within:shadow-glow-purple-sm"
             }`}
@@ -441,18 +441,8 @@ export default function CandidateChat({
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
-                if (idleWarning) {
+                if (idleWarning || paused) {
                   setIdleWarning(false);
-                  // Restart the idle timers — candidate is engaged.
-                  clearIdleTimers();
-                  idleTimerRef.current = window.setTimeout(
-                    () => setIdleWarning(true),
-                    IDLE_WARN_MS,
-                  );
-                  endTimerRef.current = window.setTimeout(
-                    autoEndInterview,
-                    IDLE_END_MS,
-                  );
                 }
               }}
               onKeyDown={(e) => {
@@ -462,11 +452,8 @@ export default function CandidateChat({
                 }
               }}
               onPaste={(e) => {
-                // Non-invasive anti-cheat: a large paste into the answer box is
-                // the classic "answer from an AI tab" signal. Record it for the
-                // recruiter (best-effort, never blocks the candidate).
                 const pasted = e.clipboardData?.getData("text") ?? "";
-                if (!ended && pasted.length >= LARGE_PASTE_CHARS) {
+                if (interactive && pasted.length >= LARGE_PASTE_CHARS) {
                   void fetch("/api/interviews/flag", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -476,36 +463,26 @@ export default function CandidateChat({
                 }
               }}
               rows={1}
-              placeholder={ended ? "Interview ended" : "Type your answer…"}
-              disabled={ended || sending}
+              placeholder={
+                phase === "welcome"
+                  ? "Type here to reply…"
+                  : isTerminal
+                    ? "Interview closed"
+                    : "Type your answer…"
+              }
+              disabled={!interactive || sending}
               className="max-h-48 min-h-[1.5rem] flex-1 resize-none overflow-y-auto bg-transparent text-[15px] leading-relaxed text-white placeholder:text-white/35 focus:outline-none disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              disabled={ended || sending || !input.trim()}
+              disabled={!interactive || sending || !input.trim()}
               aria-label="Send"
               className="ph-grad-btn-bg grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow-purple-sm transition-all hover:-translate-y-px active:scale-95 disabled:opacity-40"
             >
               {sending ? (
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="9"
-                    stroke="currentColor"
-                    strokeOpacity=".25"
-                    strokeWidth="2.5"
-                  />
-                  <path
-                    d="M21 12a9 9 0 0 0-9-9"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity=".25" strokeWidth="2.5" />
+                  <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
               ) : (
                 <Send />
@@ -513,13 +490,54 @@ export default function CandidateChat({
             </button>
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-white/35">
-            <span>Shift + Enter for newline · Enter to send</span>
+            {showSkip ? (
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="text-white/45 underline-offset-2 transition-colors hover:text-white/80 hover:underline"
+              >
+                Skip this question
+              </button>
+            ) : (
+              <span>Shift + Enter for newline · Enter to send</span>
+            )}
             <span className="font-mono">
               Powered by <span className="text-purple-300">PurpleHire</span>
             </span>
           </div>
         </form>
       </footer>
+
+      {/* LEAVE CONFIRMATION */}
+      {leaveOpen && !isTerminal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-white/12 bg-[#0d0b12] p-6 shadow-2xl animate-fm-fade-up">
+            <div className="text-[17px] font-medium">Leave the interview?</div>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-white/60">
+              Your interview will be marked <span className="text-white/85">incomplete</span> and may
+              not be reviewed by the hiring team. You can keep going instead.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLeaveOpen(false)}
+                disabled={leaving}
+                className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-2 text-[13px] font-medium text-white/80 transition-all hover:-translate-y-0.5 hover:bg-white/10 active:scale-95 disabled:opacity-40"
+              >
+                Stay
+              </button>
+              <button
+                type="button"
+                onClick={confirmLeave}
+                disabled={leaving}
+                className="rounded-full border border-red-500/40 bg-red-500/15 px-4 py-2 text-[13px] font-medium text-red-200 transition-all hover:-translate-y-0.5 hover:bg-red-500/25 active:scale-95 disabled:opacity-40"
+              >
+                {leaving ? "Leaving…" : "Leave anyway"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

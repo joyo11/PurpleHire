@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { GetServerSideProps } from "next";
 import { prisma } from "@/lib/prisma";
 import CandidateChat from "@/components/CandidateChat";
@@ -19,11 +19,15 @@ type Props = {
 
 type InterviewMode = "chat" | "voice";
 
+type ResumeMessage = { id: string; role: "user" | "assistant"; content: string };
+
 type StartedState = {
   conversationId: string;
   candidateName: string;
   roleTitle: string;
   mode: InterviewMode;
+  initialMessages?: ResumeMessage[];
+  initialStatus?: "welcome" | "in_progress" | "disconnected";
 };
 
 export default function CandidatePage({ slug, roleTitle, expired }: Props) {
@@ -33,6 +37,70 @@ export default function CandidatePage({ slug, roleTitle, expired }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState<StartedState | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  const storeKey = `ph_iv_${slug}`;
+
+  // Resume-on-reload: if this browser has an in-progress/disconnected interview
+  // for this role, pick it up instead of showing the start form.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (expired) {
+        setChecking(false);
+        return;
+      }
+      let cid: string | null = null;
+      try {
+        cid = window.localStorage.getItem(storeKey);
+      } catch {
+        cid = null;
+      }
+      if (!cid) {
+        setChecking(false);
+        return;
+      }
+      try {
+        const res = await fetch("/api/interviews/resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId: cid }),
+        });
+        const data = await res.json();
+        if (!cancelled && data?.resumable) {
+          setStarted({
+            conversationId: cid,
+            candidateName: data.candidateName,
+            roleTitle: data.roleTitle,
+            mode: data.mode === "voice" ? "voice" : "chat",
+            initialMessages: (data.messages || []).map(
+              (m: { role: "user" | "assistant"; content: string }, i: number) => ({
+                id: `r-${i}`,
+                role: m.role,
+                content: m.content,
+              }),
+            ),
+            initialStatus:
+              data.state === "welcome" ? "welcome" : "in_progress",
+          });
+        } else {
+          try {
+            window.localStorage.removeItem(storeKey);
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* offline; fall back to the start form */
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleStart(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +116,11 @@ export default function CandidatePage({ slug, roleTitle, expired }: Props) {
       if (!res.ok) {
         setError(data.error || "Could not start the interview.");
         return;
+      }
+      try {
+        window.localStorage.setItem(storeKey, data.conversationId);
+      } catch {
+        /* localStorage unavailable; resume just won't work */
       }
       setStarted({
         conversationId: data.conversationId,
@@ -102,8 +175,26 @@ export default function CandidatePage({ slug, roleTitle, expired }: Props) {
             conversationId={started.conversationId}
             candidateName={started.candidateName}
             roleTitle={started.roleTitle}
+            initialMessages={started.initialMessages}
+            initialStatus={started.initialStatus}
           />
         )}
+      </>
+    );
+  }
+
+  if (checking && !expired) {
+    return (
+      <>
+        <Head>
+          <title>{roleTitle} interview · PurpleHire</title>
+        </Head>
+        <main className="relative grid min-h-screen place-items-center bg-black text-white">
+          <div className="flex items-center gap-2 text-[13px] text-white/50">
+            <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+            Loading…
+          </div>
+        </main>
       </>
     );
   }
