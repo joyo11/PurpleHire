@@ -121,38 +121,42 @@ export default function Home() {
         <section className="border-t border-white/10 px-5 py-12 sm:px-8 sm:py-14 lg:px-12">
           <div className="mx-auto max-w-7xl">
             <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-white/40">
-              Used by teams and candidates at
+              Trusted by teams and candidates at
             </p>
-            <div className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white py-8 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.5)] [mask-image:linear-gradient(to_right,transparent,black_7%,black_93%,transparent)]">
-              <div className="ph-marquee flex w-max items-center gap-16 sm:gap-24">
+            <div className="relative mt-9">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-full max-w-3xl -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  background:
+                    "radial-gradient(50% 65% at 50% 50%, rgba(147,51,234,0.18), rgba(147,51,234,0) 70%)",
+                }}
+              />
+              <div className="relative flex flex-wrap items-center justify-center gap-x-12 gap-y-8 sm:gap-x-16">
                 {[
-                  { src: "/logos/consult.png", name: "Consult America" },
-                  { src: "/logos/elaichi.png", name: "elaichi co." },
-                  { src: "/logos/devvaults.png", name: "DevVaults" },
                   { src: "/logos/columbia.png", name: "Columbia University" },
                   { src: "/logos/consult.png", name: "Consult America" },
                   { src: "/logos/elaichi.png", name: "elaichi co." },
                   { src: "/logos/devvaults.png", name: "DevVaults" },
-                  { src: "/logos/columbia.png", name: "Columbia University" },
-                ].map((l, i) => (
+                ].map((l) => (
                   <div
-                    key={i}
-                    className="flex shrink-0 flex-col items-center gap-2.5"
+                    key={l.name}
+                    className="flex flex-col items-center gap-2.5"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={l.src}
                       alt={l.name}
-                      className="h-14 w-auto object-contain sm:h-16"
+                      className="h-9 w-auto max-w-[140px] object-contain opacity-75 brightness-0 invert transition-opacity hover:opacity-100 sm:h-10"
                     />
-                    <span className="whitespace-nowrap text-[12px] font-medium tracking-tight text-slate-500">
+                    <span className="whitespace-nowrap text-[12px] font-medium tracking-tight text-white/45">
                       {l.name}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-            <p className="mt-8 text-center text-[14px] text-white/50">
+            <p className="mt-10 text-center text-[14px] text-white/50">
               <span className="font-mono font-semibold text-white/85">60+</span>{" "}
               AI interviews run and scored, and counting.
             </p>
