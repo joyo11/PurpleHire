@@ -19,3 +19,4 @@ outreach/*.txt
 outreach/__pycache__/
 outreach/jobright-profile/
 outreach/_debug.ts
+.claude/

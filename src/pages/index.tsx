@@ -123,7 +123,7 @@ export default function Home() {
             <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-white/40">
               Used by teams and candidates at
             </p>
-            <div className="relative mt-9 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+            <div className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white py-8 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.5)] [mask-image:linear-gradient(to_right,transparent,black_7%,black_93%,transparent)]">
               <div className="ph-marquee flex w-max items-center gap-16 sm:gap-24">
                 {[
                   { src: "/logos/consult.png", name: "Consult America" },
@@ -137,15 +137,15 @@ export default function Home() {
                 ].map((l, i) => (
                   <div
                     key={i}
-                    className="flex shrink-0 flex-col items-center gap-3"
+                    className="flex shrink-0 flex-col items-center gap-2.5"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={l.src}
                       alt={l.name}
-                      className="h-16 w-auto object-contain sm:h-20"
+                      className="h-14 w-auto object-contain sm:h-16"
                     />
-                    <span className="whitespace-nowrap text-[12.5px] font-medium tracking-tight text-white/50">
+                    <span className="whitespace-nowrap text-[12px] font-medium tracking-tight text-slate-500">
                       {l.name}
                     </span>
                   </div>

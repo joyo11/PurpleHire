@@ -394,8 +394,8 @@ input:focus {
 }
 /* Logo marquee — auto-scroll left→right, seamless (list is duplicated 2x) */
 @keyframes ph-marquee {
-  from { transform: translateX(-50%); }
-  to   { transform: translateX(0); }
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 .ph-marquee {
   animation: ph-marquee 34s linear infinite;
