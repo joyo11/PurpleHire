@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildNextRoundMailto } from "@/lib/inviteEmail";
+import ScoreExplainer from "@/components/ScoreExplainer";
 import {
   PHTopBar,
   PHAvatar,
@@ -98,16 +99,20 @@ function VerdictCallout({
       : score >= 8
         ? "Strong fit"
         : score >= 6
-          ? "Mixed signal"
-          : "Likely no";
+          ? "Solid, leaning yes"
+          : score >= 4
+            ? "Mixed signal"
+            : "Likely no";
   const tierClass =
     score === null
       ? "bg-white/10 text-white/60 ring-white/15"
       : score >= 8
         ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30"
         : score >= 6
-          ? "bg-yellow-500/15 text-yellow-300 ring-yellow-500/30"
-          : "bg-red-500/15 text-red-300 ring-red-500/30";
+          ? "bg-teal-500/15 text-teal-300 ring-teal-500/30"
+          : score >= 4
+            ? "bg-yellow-500/15 text-yellow-300 ring-yellow-500/30"
+            : "bg-red-500/15 text-red-300 ring-red-500/30";
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-br from-purple-500/[0.08] via-purple-500/[0.03] to-transparent p-5 sm:p-6">
@@ -128,7 +133,7 @@ function VerdictCallout({
       <p className="text-[14px] leading-relaxed text-white/85 sm:text-[14.5px]">
         {verdict ?? (
           <span className="italic text-white/55">
-            Awaiting AI verdict — the scorer runs once the conversation
+            Awaiting AI verdict. The scorer runs once the conversation
             completes.
           </span>
         )}
@@ -366,6 +371,10 @@ export default function Transcript({
               score={candidate.score}
               verdict={candidate.verdict}
             />
+          </div>
+
+          <div className="mt-3">
+            <ScoreExplainer />
           </div>
 
           {/* Transcript */}
