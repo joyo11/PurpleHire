@@ -392,3 +392,16 @@ input:focus {
 .bot-avatar {
   animation: pulse 2s infinite;
 }
+/* Logo marquee — auto-scroll left→right, seamless (list is duplicated 2x) */
+@keyframes ph-marquee {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+.ph-marquee {
+  animation: ph-marquee 34s linear infinite;
+  will-change: transform;
+}
+.ph-marquee:hover { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .ph-marquee { animation: none; }
+}

@@ -117,6 +117,48 @@ export default function Home() {
           </div>
         </section>
 
+        {/* SOCIAL PROOF */}
+        <section className="border-t border-white/10 px-5 py-12 sm:px-8 sm:py-14 lg:px-12">
+          <div className="mx-auto max-w-7xl">
+            <p className="text-center text-[12px] font-medium uppercase tracking-[0.16em] text-white/40">
+              Used by teams and candidates at
+            </p>
+            <div className="relative mt-9 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+              <div className="ph-marquee flex w-max items-center gap-16 sm:gap-24">
+                {[
+                  { src: "/logos/consult.png", name: "Consult America" },
+                  { src: "/logos/elaichi.png", name: "elaichi co." },
+                  { src: "/logos/devvaults.png", name: "DevVaults" },
+                  { src: "/logos/columbia.png", name: "Columbia University" },
+                  { src: "/logos/consult.png", name: "Consult America" },
+                  { src: "/logos/elaichi.png", name: "elaichi co." },
+                  { src: "/logos/devvaults.png", name: "DevVaults" },
+                  { src: "/logos/columbia.png", name: "Columbia University" },
+                ].map((l, i) => (
+                  <div
+                    key={i}
+                    className="flex shrink-0 flex-col items-center gap-3"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={l.src}
+                      alt={l.name}
+                      className="h-16 w-auto object-contain sm:h-20"
+                    />
+                    <span className="whitespace-nowrap text-[12.5px] font-medium tracking-tight text-white/50">
+                      {l.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="mt-8 text-center text-[14px] text-white/50">
+              <span className="font-mono font-semibold text-white/85">60+</span>{" "}
+              AI interviews run and scored, and counting.
+            </p>
+          </div>
+        </section>
+
         {/* PRICING */}
         <section className="relative overflow-hidden border-t border-white/10 px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
           <div
