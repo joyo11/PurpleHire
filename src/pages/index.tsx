@@ -132,7 +132,7 @@ export default function Home() {
                     "radial-gradient(50% 65% at 50% 50%, rgba(147,51,234,0.18), rgba(147,51,234,0) 70%)",
                 }}
               />
-              <div className="relative flex flex-wrap items-center justify-center gap-x-12 gap-y-8 sm:gap-x-16">
+              <div className="relative flex flex-wrap items-center justify-center gap-x-14 gap-y-10 sm:gap-x-24">
                 {[
                   { src: "/logos/columbia.png", name: "Columbia University" },
                   { src: "/logos/consult.png", name: "Consult America" },
@@ -141,15 +141,15 @@ export default function Home() {
                 ].map((l) => (
                   <div
                     key={l.name}
-                    className="flex flex-col items-center gap-2.5"
+                    className="flex flex-col items-center gap-3"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={l.src}
                       alt={l.name}
-                      className="h-9 w-auto max-w-[140px] object-contain opacity-75 brightness-0 invert transition-opacity hover:opacity-100 sm:h-10"
+                      className="h-16 w-auto max-w-[150px] object-contain opacity-95 transition-transform duration-200 hover:scale-105 sm:h-20"
                     />
-                    <span className="whitespace-nowrap text-[12px] font-medium tracking-tight text-white/45">
+                    <span className="whitespace-nowrap text-[13px] font-medium tracking-tight text-white/55">
                       {l.name}
                     </span>
                   </div>
