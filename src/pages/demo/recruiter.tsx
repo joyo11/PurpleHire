@@ -55,9 +55,17 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
   const [sort, setSort] = useState<SortKey>("score");
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
+  const [demoToast, setDemoToast] = useState(false);
   const [emailPreviewFor, setEmailPreviewFor] = useState<
     Pick<DemoCandidate, "name" | "email"> | null
   >(null);
+
+  const shareLink = `purplehire.vercel.app/i/${role.slug}`;
+
+  function showDemoToast() {
+    setDemoToast(true);
+    setTimeout(() => setDemoToast(false), 1800);
+  }
 
   const completedCount = candidates.filter((c) => c.status === "completed").length;
   const inProgressCount = candidates.filter((c) => c.status === "in_progress").length;
@@ -87,7 +95,7 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
   }, [candidates, filter, sort, search]);
 
   async function copyDemoLink() {
-    await navigator.clipboard.writeText("https://purplehire.vercel.app/i/demo");
+    await navigator.clipboard.writeText(`https://${shareLink}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -141,7 +149,12 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
               </div>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
-              <PHButton variant="ghost" size="sm" icon={<Download />}>
+              <PHButton
+                variant="ghost"
+                size="sm"
+                icon={<Download />}
+                onClick={showDemoToast}
+              >
                 Export
               </PHButton>
             </div>
@@ -161,7 +174,7 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
                   Share with candidates
                 </div>
                 <div className="truncate font-mono text-[13px] text-white/85">
-                  purplehire.com/i/{role.slug}
+                  {shareLink}
                 </div>
               </div>
             </div>
@@ -362,6 +375,14 @@ export default function DemoRecruiterPage({ role, candidates }: Props) {
         candidate={emailPreviewFor ?? { name: "", email: "" }}
         roleTitle={role.title}
       />
+
+      {demoToast && (
+        <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="rounded-full border border-white/15 bg-black/85 px-4 py-2 text-[13px] text-white/80 shadow-card-lift backdrop-blur">
+            Demo only — sign in to export.
+          </div>
+        </div>
+      )}
     </>
   );
 }

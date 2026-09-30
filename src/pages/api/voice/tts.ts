@@ -17,6 +17,31 @@ const openai = new OpenAI({
 // One TTS request must stay under this to keep latency tight + cost bounded.
 const MAX_INPUT_CHARS = 4000;
 
+// Lightweight in-memory sliding-window rate limit, per client IP. No external
+// deps — good enough to blunt abuse of a single instance. Resets on redeploy.
+const RATE_LIMIT_MAX = 20; // requests
+const RATE_LIMIT_WINDOW_MS = 60_000; // per minute
+const rateHits = new Map<string, number[]>();
+
+function clientIp(req: NextApiRequest): string {
+  const fwd = req.headers["x-forwarded-for"];
+  const raw = Array.isArray(fwd) ? fwd[0] : fwd;
+  return (raw?.split(",")[0].trim() || req.socket.remoteAddress || "unknown");
+}
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const cutoff = now - RATE_LIMIT_WINDOW_MS;
+  const hits = (rateHits.get(ip) ?? []).filter((t) => t > cutoff);
+  if (hits.length >= RATE_LIMIT_MAX) {
+    rateHits.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  rateHits.set(ip, hits);
+  return false;
+}
+
 export const config = {
   api: {
     // We're streaming bytes, not parsing JSON for the response.
@@ -31,6 +56,10 @@ export default async function handler(
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (rateLimited(clientIp(req))) {
+    return res.status(429).json({ error: "Too many requests. Please wait a moment and try again." });
   }
 
   const { text, voice = "nova" } = req.body as {

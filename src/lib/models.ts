@@ -20,5 +20,5 @@ export const MODELS = {
   interview: process.env.OPENAI_INTERVIEW_MODEL || "gpt-4o",
   jdAnalysis: process.env.OPENAI_UTILITY_MODEL || "gpt-4o-mini",
   scoring: process.env.OPENAI_UTILITY_MODEL || "gpt-4o-mini",
-  tts: process.env.OPENAI_TTS_MODEL || "tts-1",
+  tts: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
 } as const;

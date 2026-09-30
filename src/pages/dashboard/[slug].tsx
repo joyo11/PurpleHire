@@ -16,7 +16,6 @@ import {
   Copy,
   Check,
   Download,
-  Dots,
   ChevronRight,
   ChevronLeft,
   ChevronDown,
@@ -165,6 +164,32 @@ export default function RoleDetail({
     setTimeout(() => setCopiedJd(false), 1500);
   }
 
+  function exportCsv() {
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const header = ["Name", "Email", "Score", "Verdict", "Date"];
+    const rows = filtered.map((c) =>
+      [
+        c.name,
+        c.email,
+        c.score === null ? "" : c.score.toFixed(1),
+        c.verdict ?? "",
+        new Date(c.createdAt).toLocaleDateString(),
+      ]
+        .map((cell) => esc(String(cell)))
+        .join(","),
+    );
+    const csv = [header.map(esc).join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${role.slug}-candidates.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
       <Head>
@@ -205,15 +230,14 @@ export default function RoleDetail({
               </div>
             </div>
             <div className="hidden items-center gap-2 sm:flex">
-              <PHButton variant="ghost" size="sm" icon={<Download />}>
+              <PHButton
+                variant="ghost"
+                size="sm"
+                icon={<Download />}
+                onClick={exportCsv}
+              >
                 Export
               </PHButton>
-              <button
-                className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white/65 transition-colors hover:bg-white/5 hover:text-white"
-                aria-label="More"
-              >
-                <Dots />
-              </button>
             </div>
           </header>
 

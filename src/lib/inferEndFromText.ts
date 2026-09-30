@@ -31,11 +31,13 @@ export function inferEndFromText(
     }
   }
 
+  // A wrap phrase must be an *unambiguous* sign-off. Phrases like "thanks for
+  // taking the time" or "thanks for chatting" were removed: the bot says them
+  // mid-interview ("thanks for taking the time to explain that") and would
+  // falsely end the conversation.
   const wrapPhrase =
     /(wrap up|wrapping up|i'?ll end here|best of luck out there|wishing you the best|wrap things up|so i'?ll wrap|let'?s wrap)/.test(b) ||
-    /(really enjoyed (our|the) chat|enjoyed (our|the) (chat|conversation))/.test(b) ||
     /(recruiter will (review|be in touch|follow up)|recruiter (will|may) reach out)/.test(b) ||
-    /(thanks (so much )?for (your time|taking the time|chatting))/.test(b) ||
     /(have a (great|wonderful|nice) day)/.test(b) ||
     /(we[' ]?ll be in touch|we will be in touch)/.test(b) ||
     /(all the best in your (job search|career))/.test(b);
@@ -52,6 +54,17 @@ export function inferEndFromText(
     /(can only discuss|outside what i'?m here|focus.*role|on[- ]topic)/.test(b)
   ) {
     return "off_topic";
+  }
+  // Dealbreaker closings: the bot wrapped up because a must-have is missing or
+  // a red flag surfaced. These map to the same reasons the end_interview tool
+  // emits, so downstream scoring treats them consistently.
+  if (
+    /(not (quite )?(the|a) right fit|might not be (the|a) (right )?fit|isn'?t (the|a) (right )?(fit|match)|this (particular )?role (requires|calls for)|not (the|a) match for this role)/.test(b)
+  ) {
+    return "missing_must_have";
+  }
+  if (/(red flag|raises (a )?concern|serious concern|dealbreaker|can'?t move forward)/.test(b)) {
+    return "red_flag_inferred";
   }
   return "completed";
 }

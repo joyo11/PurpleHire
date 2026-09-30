@@ -6,6 +6,38 @@ import type { InterviewPlan } from "@/lib/jdAnalyzer";
 import { scoreInterview } from "@/lib/interviewScorer";
 import { inferEndFromText } from "@/lib/inferEndFromText";
 
+// Hard cap on transcript length. Once the conversation reaches this many
+// messages with no natural or tool-driven ending, we force the interview
+// closed so a stuck/looping model can't run forever.
+const MAX_TURNS = 24;
+
+// Lightweight, dependency-free per-IP rate limiting. Kept in module memory so
+// it resets on redeploy; good enough to blunt abuse of the LLM-backed endpoint.
+const RATE_LIMIT = 30; // requests
+const RATE_WINDOW_MS = 60_000; // per minute
+const rateBuckets = new Map<string, number[]>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const hits = (rateBuckets.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  hits.push(now);
+  rateBuckets.set(ip, hits);
+  // Opportunistic cleanup so the map doesn't grow unbounded.
+  if (rateBuckets.size > 5000) {
+    for (const [k, v] of rateBuckets) {
+      if (v.every((t) => now - t >= RATE_WINDOW_MS)) rateBuckets.delete(k);
+    }
+  }
+  return hits.length > RATE_LIMIT;
+}
+
+function clientIp(req: NextApiRequest): string {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length) return fwd.split(",")[0].trim();
+  if (Array.isArray(fwd) && fwd.length) return fwd[0];
+  return req.socket?.remoteAddress ?? "unknown";
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -13,6 +45,11 @@ export default async function handler(
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (rateLimited(clientIp(req))) {
+    res.setHeader("Retry-After", "60");
+    return res.status(429).json({ error: "Too many requests. Please slow down." });
   }
 
   try {
@@ -108,6 +145,12 @@ export default async function handler(
     let endInterviewReason = llm.endInterviewReason;
     if (!endInterviewReason && text) {
       endInterviewReason = inferEndFromText(text, userMessage.content);
+    }
+    // Hard turn cap: if neither the tool nor the regex ended things, force the
+    // interview closed once the transcript gets too long. `history` already
+    // includes the just-added candidate message.
+    if (!endInterviewReason && history.length >= MAX_TURNS) {
+      endInterviewReason = "turn_limit";
     }
 
     let assistantMessage = null;

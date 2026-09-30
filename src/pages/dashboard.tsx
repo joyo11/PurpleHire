@@ -13,6 +13,7 @@ import {
   PHInput,
   PHTextarea,
   PHPill,
+  PHFitBadge,
   ArrowRight,
   ChevronRight,
   Sparkle,
@@ -27,7 +28,10 @@ type RoleSummary = {
   createdAt: string;
   candidateCount: number;
   completedCount: number;
+  bestScore: number | null;
 };
+
+type RoleFilter = "all" | "active";
 
 type Props = {
   user: { name: string | null; email: string | null; image: string | null };
@@ -135,6 +139,7 @@ export default function Dashboard({
   const [error, setError] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -152,6 +157,11 @@ export default function Dashboard({
   );
   const doneCount = roles.reduce((acc, r) => acc + r.completedCount, 0);
 
+  const visibleRoles =
+    roleFilter === "active"
+      ? roles.filter((r) => r.candidateCount - r.completedCount > 0)
+      : roles;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -168,7 +178,7 @@ export default function Dashboard({
         return;
       }
       setRoles([
-        { ...data.role, candidateCount: 0, completedCount: 0 },
+        { ...data.role, candidateCount: 0, completedCount: 0, bestScore: null },
         ...roles,
       ]);
       setTitle("");
@@ -346,9 +356,18 @@ export default function Dashboard({
                 Your interviews
               </h2>
               <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[0.02] px-1 py-1 sm:flex">
-                <PHPill active>All</PHPill>
-                <PHPill>Active</PHPill>
-                <PHPill>Archived</PHPill>
+                <PHPill
+                  active={roleFilter === "all"}
+                  onClick={() => setRoleFilter("all")}
+                >
+                  All
+                </PHPill>
+                <PHPill
+                  active={roleFilter === "active"}
+                  onClick={() => setRoleFilter("active")}
+                >
+                  Active
+                </PHPill>
               </div>
             </div>
 
@@ -393,26 +412,31 @@ export default function Dashboard({
                   Paste your first JD above and we&apos;ll do the rest.
                 </p>
               </div>
+            ) : visibleRoles.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.01] p-10 text-center text-[14px] text-white/50 sm:p-12">
+                No roles with ongoing interviews.
+              </div>
             ) : (
               <>
                 {/* Desktop table */}
                 <div className="hidden overflow-hidden rounded-3xl border border-white/10 lg:block">
                   <div className="grid grid-cols-12 gap-4 border-b border-white/10 bg-white/[0.02] px-6 py-3 text-[11px] uppercase tracking-[0.14em] text-white/40">
-                    <div className="col-span-4">Role</div>
+                    <div className="col-span-3">Role</div>
                     <div className="col-span-2">Created</div>
+                    <div className="col-span-1">Top fit</div>
                     <div className="col-span-1 text-right">Done</div>
                     <div className="col-span-1 text-right">Ongoing</div>
                     <div className="col-span-3">Interview URL</div>
                     <div className="col-span-1 text-right">·</div>
                   </div>
-                  {roles.map((r, i) => {
+                  {visibleRoles.map((r, i) => {
                     const liveN = r.candidateCount - r.completedCount;
                     return (
                       <div
                         key={r.id}
                         className="group grid grid-cols-12 items-center gap-4 border-b border-white/5 px-6 py-4 transition-all last:border-b-0 hover:-translate-y-px hover:border-white/15 hover:bg-white/[0.025]"
                       >
-                        <div className="col-span-4 flex items-center gap-3">
+                        <div className="col-span-3 flex items-center gap-3">
                           <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/[0.04] font-mono text-[11px] text-white/55 ring-1 ring-inset ring-white/10">
                             {String(i + 1).padStart(2, "0")}
                           </div>
@@ -425,6 +449,15 @@ export default function Dashboard({
                         </div>
                         <div className="col-span-2 text-[13px] text-white/50">
                           {formatShortDate(r.createdAt)}
+                        </div>
+                        <div className="col-span-1">
+                          {r.bestScore !== null ? (
+                            <PHFitBadge score={r.bestScore} />
+                          ) : (
+                            <span className="font-mono text-[12px] text-white/30">
+                              —
+                            </span>
+                          )}
                         </div>
                         <div className="col-span-1 text-right font-mono text-[13px] text-white/75">
                           {r.completedCount}
@@ -495,7 +528,7 @@ export default function Dashboard({
 
                 {/* Mobile cards */}
                 <ul className="flex flex-col gap-2 lg:hidden">
-                  {roles.map((r) => {
+                  {visibleRoles.map((r) => {
                     const liveN = r.candidateCount - r.completedCount;
                     return (
                       <li
@@ -516,14 +549,19 @@ export default function Dashboard({
                               </div>
                             </div>
                           </Link>
-                          <button
-                            onClick={() => deleteRole(r)}
-                            disabled={deletingId === r.id}
-                            className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
-                            aria-label="Delete interview"
-                          >
-                            <TrashIcon />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {r.bestScore !== null && (
+                              <PHFitBadge score={r.bestScore} />
+                            )}
+                            <button
+                              onClick={() => deleteRole(r)}
+                              disabled={deletingId === r.id}
+                              className="grid h-7 w-7 place-items-center rounded-md text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                              aria-label="Delete interview"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-3 flex items-center gap-4 text-[12px]">
                           <span className="font-mono text-white/65">
@@ -584,6 +622,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       createdAt: true,
       candidates: {
         select: {
+          score: true,
           conversations: {
             orderBy: { createdAt: "desc" },
             take: 1,
@@ -616,6 +655,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         completedCount: r.candidates.filter(
           (c) => c.conversations[0]?.status === "completed",
         ).length,
+        bestScore: r.candidates.reduce<number | null>((best, c) => {
+          if (c.score === null) return best;
+          return best === null || c.score > best ? c.score : best;
+        }, null),
       })),
       plan: gate.plan,
       monthlyInterviews: gate.monthlyInterviews,

@@ -93,11 +93,17 @@ export default function SignIn() {
           </div>
           <div className="mt-6 text-center text-[12px] text-white/35">
             By continuing you agree to our{" "}
-            <a className="text-white/55 underline-offset-2 hover:underline">
+            <a
+              href="mailto:shafay11august@gmail.com?subject=PurpleHire%20terms"
+              className="text-white/55 underline-offset-2 hover:underline"
+            >
               Terms
             </a>{" "}
             and{" "}
-            <a className="text-white/55 underline-offset-2 hover:underline">
+            <a
+              href="mailto:shafay11august@gmail.com?subject=PurpleHire%20privacy"
+              className="text-white/55 underline-offset-2 hover:underline"
+            >
               Privacy
             </a>
             .

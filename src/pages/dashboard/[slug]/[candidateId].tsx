@@ -104,6 +104,31 @@ export default function Transcript({
   messages,
 }: Props) {
   const initial = firstInitial(candidate.name);
+
+  function exportTranscript() {
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const header = ["Speaker", "Message", "Time"];
+    const rows = messages.map((m) =>
+      [
+        m.role === "user" ? candidate.name : "Interviewer",
+        m.content,
+        new Date(m.createdAt).toLocaleString(),
+      ]
+        .map((cell) => esc(String(cell)))
+        .join(","),
+    );
+    const csv = [header.map(esc).join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = candidate.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    a.download = `${role.slug}-${safeName}-transcript.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
   const conversationStatus =
     conversation?.status === "completed"
       ? `Interview complete · ${conversation.endReason ?? "completed"}`
@@ -196,7 +221,12 @@ export default function Transcript({
                   Send next-round email
                 </a>
               )}
-              <PHButton variant="ghost" size="sm" icon={<Download />}>
+              <PHButton
+                variant="ghost"
+                size="sm"
+                icon={<Download />}
+                onClick={exportTranscript}
+              >
                 Export
               </PHButton>
               <PHButton size="sm" icon={<Check />}>

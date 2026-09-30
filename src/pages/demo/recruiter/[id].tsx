@@ -104,6 +104,12 @@ export default function DemoTranscript({ candidate, roleTitle, roleSlug }: Props
       : "Interview in progress";
 
   const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
+  const [demoToast, setDemoToast] = useState<string | null>(null);
+
+  function showDemoToast(message: string) {
+    setDemoToast(message);
+    setTimeout(() => setDemoToast(null), 1800);
+  }
 
   return (
     <>
@@ -195,10 +201,21 @@ export default function DemoTranscript({ candidate, roleTitle, roleSlug }: Props
                   Send next-round email
                 </button>
               )}
-              <PHButton variant="ghost" size="sm" icon={<Download />}>
+              <PHButton
+                variant="ghost"
+                size="sm"
+                icon={<Download />}
+                onClick={() => showDemoToast("Demo only — sign in to export.")}
+              >
                 Export
               </PHButton>
-              <PHButton size="sm" icon={<Check />}>
+              <PHButton
+                size="sm"
+                icon={<Check />}
+                onClick={() =>
+                  showDemoToast("Demo only — sign in to track reviews.")
+                }
+              >
                 Mark reviewed
               </PHButton>
             </div>
@@ -268,6 +285,14 @@ export default function DemoTranscript({ candidate, roleTitle, roleSlug }: Props
         candidate={{ name: candidate.name, email: candidate.email }}
         roleTitle={roleTitle}
       />
+
+      {demoToast && (
+        <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="rounded-full border border-white/15 bg-black/85 px-4 py-2 text-[13px] text-white/80 shadow-card-lift backdrop-blur">
+            {demoToast}
+          </div>
+        </div>
+      )}
     </>
   );
 }
