@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   PHLogo,
   PHButton,
@@ -28,6 +29,11 @@ const STEPS = [
 ];
 
 export default function Home() {
+  const { data: session } = useSession();
+  const signedIn = !!session?.user;
+  const avatarInitial =
+    (session?.user?.name || session?.user?.email || "A")[0]?.toUpperCase() ??
+    "A";
   return (
     <>
       <Head>
@@ -49,17 +55,47 @@ export default function Home() {
             >
               Pricing
             </Link>
-            <Link
-              href="/signin"
-              className="hidden rounded-full px-3 py-1.5 text-white/85 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96] sm:inline-block"
-            >
-              Sign in
-            </Link>
-            <Link href="/signin">
-              <PHButton size="sm" iconRight={<ChevronRight />}>
-                Get started
-              </PHButton>
-            </Link>
+            {signedIn ? (
+              <>
+                <Link href="/dashboard">
+                  <PHButton size="sm" iconRight={<ChevronRight />}>
+                    Dashboard
+                  </PHButton>
+                </Link>
+                <Link
+                  href="/dashboard"
+                  aria-label="Your dashboard"
+                  className="transition-transform duration-150 hover:-translate-y-0.5 active:scale-95"
+                >
+                  {session?.user?.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={session.user.image}
+                      alt=""
+                      className="h-9 w-9 rounded-full object-cover ring-1 ring-white/15"
+                    />
+                  ) : (
+                    <span className="grid h-9 w-9 place-items-center rounded-full bg-purple-500/20 text-[13px] font-medium text-purple-200 ring-1 ring-white/15">
+                      {avatarInitial}
+                    </span>
+                  )}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/signin"
+                  className="hidden rounded-full px-3 py-1.5 text-white/85 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96] sm:inline-block"
+                >
+                  Sign in
+                </Link>
+                <Link href="/signin">
+                  <PHButton size="sm" iconRight={<ChevronRight />}>
+                    Get started
+                  </PHButton>
+                </Link>
+              </>
+            )}
           </nav>
         </header>
 
@@ -93,22 +129,41 @@ export default function Home() {
               className="mt-7 flex flex-col gap-2 animate-fm-fade-up sm:mt-9 sm:flex-row sm:items-center sm:gap-3"
               style={{ animationDelay: "180ms" }}
             >
-              <Link href="/demo">
-                <PHButton size="lg" iconRight={<ArrowRight />}>
-                  Try a sample interview
-                </PHButton>
-              </Link>
-              <Link href="/signin">
-                <PHButton size="lg" variant="ghost">
-                  Sign in
-                </PHButton>
-              </Link>
+              {signedIn ? (
+                <>
+                  <Link href="/dashboard/new">
+                    <PHButton size="lg" iconRight={<ArrowRight />}>
+                      Create interview
+                    </PHButton>
+                  </Link>
+                  <Link href="/dashboard">
+                    <PHButton size="lg" variant="ghost">
+                      Go to dashboard
+                    </PHButton>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/demo">
+                    <PHButton size="lg" iconRight={<ArrowRight />}>
+                      Try a sample interview
+                    </PHButton>
+                  </Link>
+                  <Link href="/signin">
+                    <PHButton size="lg" variant="ghost">
+                      Sign in
+                    </PHButton>
+                  </Link>
+                </>
+              )}
             </div>
             <p
               className="mt-3 animate-fm-fade-up text-[13px] text-white/40"
               style={{ animationDelay: "220ms" }}
             >
-              No signup needed to try it.
+              {signedIn
+                ? "Welcome back. Paste a JD and PurpleHire does the rest."
+                : "No signup needed to try it."}
             </p>
 
           </div>
