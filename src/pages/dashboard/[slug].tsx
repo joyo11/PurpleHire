@@ -102,6 +102,22 @@ function firstInitial(name: string) {
   return name.trim()[0]?.toUpperCase() ?? "?";
 }
 
+/** When the candidate took the interview, e.g. "26 May 2026, 3:42 PM". */
+function formatInterviewDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = d.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${date}, ${time}`;
+}
+
 const DECISION_META: Record<string, { label: string; badge: string }> = {
   shortlisted: {
     label: "Shortlisted",
@@ -701,6 +717,9 @@ export default function RoleDetail({
                         <div className="truncate text-[12px] text-white/45">
                           {c.email}
                         </div>
+                        <div className="truncate text-[11px] text-white/35">
+                          Interviewed {formatInterviewDateTime(c.createdAt)}
+                        </div>
                       </div>
                     </div>
                     <div className="col-span-1">
@@ -770,6 +789,9 @@ export default function RoleDetail({
                           </div>
                           <div className="truncate text-[11px] text-white/45">
                             {c.email}
+                          </div>
+                          <div className="truncate text-[10.5px] text-white/35">
+                            {formatInterviewDateTime(c.createdAt)}
                           </div>
                         </div>
                       </Link>

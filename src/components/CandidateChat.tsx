@@ -16,6 +16,12 @@ type ChatMessage = {
   content: string;
 };
 
+// WhatsApp-style doodle backdrop: faint purple line-art (speech bubble, sparkle,
+// check, document, briefcase, magnifier, stars) tiled behind the messages. Kept
+// very low-opacity so it's atmospheric, never competing with the conversation.
+const DOODLE_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'><g fill='none' stroke='rgb(167,139,250)' stroke-opacity='0.11' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M20 30h42a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8H40l-11 10V66h-9a8 8 0 0 1-8-8V38a8 8 0 0 1 8-8z'/><path d='M162 24l4.5 13 13 4.5-13 4.5-4.5 13-4.5-13-13-4.5 13-4.5z'/><circle cx='206' cy='78' r='15'/><path d='M199 78l5 5 9-10'/><rect x='28' y='128' width='36' height='46' rx='4'/><path d='M36 141h20M36 151h20M36 161h12'/><rect x='158' y='158' width='44' height='32' rx='4'/><path d='M172 158v-7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v7M158 171h44'/><circle cx='96' cy='190' r='11'/><path d='M104 198l9 9'/><path d='M118 100l3.5 8 8 3.5-8 3.5-3.5 8-3.5-8-8-3.5 8-3.5z'/><path d='M214 150v14M207 157h14'/><path d='M44 92h18M44 100h10'/></g></svg>`;
+const DOODLE_BG = `url("data:image/svg+xml,${encodeURIComponent(DOODLE_SVG)}")`;
+
 type Phase = "welcome" | "active" | "ended" | "left";
 
 type Props = {
@@ -347,9 +353,8 @@ export default function CandidateChat({
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 py-6 sm:px-8"
         style={{
-          backgroundImage:
-            "radial-gradient(rgba(147,51,234,0.06) 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
+          backgroundImage: DOODLE_BG,
+          backgroundSize: "240px 240px",
         }}
       >
         <div className="mx-auto flex max-w-[760px] flex-col gap-4">
