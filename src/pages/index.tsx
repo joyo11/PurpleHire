@@ -14,18 +14,33 @@ import {
 const STEPS = [
   {
     n: "01",
-    t: "Paste the JD",
-    d: "We parse the role, must-haves, and nice-to-haves automatically.",
+    t: "Paste the job description",
+    d: "PurpleHire reads the role and pulls out the must-haves, nice-to-haves, and the competencies worth testing.",
   },
   {
     n: "02",
-    t: "We run interviews",
-    d: "PurpleHire chats with every applicant, empathetic, on-brief, never robotic.",
+    t: "Review the interview plan",
+    d: "It drafts the questions and what to look for in each answer. Edit anything before it goes live, you stay in control.",
   },
   {
     n: "03",
-    t: "Email the top 5%",
-    d: "Sorted by fit score with reasoning. One click sends a next-round invite to anyone scoring 8+.",
+    t: "Share one link",
+    d: "Send a single interview link to every applicant. They just enter their name, no account or scheduling needed.",
+  },
+  {
+    n: "04",
+    t: "AI interviews every candidate",
+    d: "A real, adaptive conversation. It asks useful follow-ups and decides on its own when it has enough to judge fairly.",
+  },
+  {
+    n: "05",
+    t: "Get an evidence-based report",
+    d: "Each candidate gets a 1-10 score with a competency breakdown, strengths, concerns, and quotes from the interview.",
+  },
+  {
+    n: "06",
+    t: "Review and shortlist",
+    d: "Sort by fit, skim the report, shortlist or reject. One click emails your strongest candidates about next steps.",
   },
 ];
 
@@ -62,6 +77,12 @@ export default function Home() {
         <header className="mx-auto flex max-w-7xl items-center justify-between px-5 pt-5 sm:px-8 sm:pt-6 lg:px-12">
           <PHLogo size="md" />
           <nav className="flex items-center gap-2 text-[14px] text-white/70 sm:gap-6">
+            <a
+              href="#how"
+              className="hidden rounded-full px-3 py-1.5 text-white/85 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96] sm:inline-block"
+            >
+              How it works
+            </a>
             <Link
               href="/pricing"
               className="hidden rounded-full px-3 py-1.5 text-white/85 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:bg-white/[0.06] hover:text-white active:translate-y-0 active:scale-[0.96] sm:inline-block"
@@ -226,8 +247,11 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 3-STEP EXPLAINER (HOW IT WORKS) */}
-        <section className="border-t border-white/10 bg-black/40 px-5 py-14 sm:px-8 sm:py-20 lg:px-12">
+        {/* HOW IT WORKS */}
+        <section
+          id="how"
+          className="scroll-mt-16 border-t border-white/10 bg-black/40 px-5 py-14 sm:px-8 sm:py-20 lg:px-12"
+        >
           <div className="mx-auto max-w-7xl">
             <div className="mb-10 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-end sm:gap-4 lg:mb-12">
               <div>
@@ -235,11 +259,12 @@ export default function Home() {
                   HOW IT WORKS
                 </div>
                 <h2 className="mt-2 text-[26px] font-medium tracking-tight sm:text-[36px]">
-                  Three steps. About ten minutes.
+                  From job description to shortlist.
                 </h2>
               </div>
-              <div className="text-[13px] text-white/45 sm:text-[14px]">
-                No sourcing. No phone tag. No &ldquo;are you still interested?&rdquo;
+              <div className="max-w-[320px] text-[13px] text-white/45 sm:text-[14px]">
+                You set it up once. PurpleHire interviews everyone and hands you
+                the evidence. Candidates just use the link, no account needed.
               </div>
             </div>
             <div className="grid gap-3 sm:gap-5 lg:grid-cols-3">
