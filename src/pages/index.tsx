@@ -1,6 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useState, useRef, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
 import {
   PHLogo,
   PHButton,
@@ -34,6 +35,18 @@ export default function Home() {
   const avatarInitial =
     (session?.user?.name || session?.user?.email || "A")[0]?.toUpperCase() ??
     "A";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
   return (
     <>
       <Head>
@@ -62,24 +75,59 @@ export default function Home() {
                     Dashboard
                   </PHButton>
                 </Link>
-                <Link
-                  href="/dashboard"
-                  aria-label="Your dashboard"
-                  className="transition-transform duration-150 hover:-translate-y-0.5 active:scale-95"
-                >
-                  {session?.user?.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={session.user.image}
-                      alt=""
-                      className="h-9 w-9 rounded-full object-cover ring-1 ring-white/15"
-                    />
-                  ) : (
-                    <span className="grid h-9 w-9 place-items-center rounded-full bg-purple-500/20 text-[13px] font-medium text-purple-200 ring-1 ring-white/15">
-                      {avatarInitial}
-                    </span>
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen((o) => !o)}
+                    aria-label="Account menu"
+                    aria-expanded={menuOpen}
+                    className="block rounded-full transition-transform duration-150 hover:-translate-y-0.5 active:scale-95"
+                  >
+                    {session?.user?.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={session.user.image}
+                        alt=""
+                        className="h-9 w-9 rounded-full object-cover ring-1 ring-white/15"
+                      />
+                    ) : (
+                      <span className="grid h-9 w-9 place-items-center rounded-full bg-purple-500/20 text-[13px] font-medium text-purple-200 ring-1 ring-white/15">
+                        {avatarInitial}
+                      </span>
+                    )}
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-white/12 bg-[#0d0b12] shadow-2xl animate-fm-fade-up">
+                      <div className="border-b border-white/10 px-4 py-3">
+                        <div className="truncate text-[13px] font-medium text-white">
+                          {session?.user?.name ?? "Signed in"}
+                        </div>
+                        <div className="truncate text-[12px] text-white/45">
+                          {session?.user?.email}
+                        </div>
+                      </div>
+                      <Link
+                        href="/dashboard"
+                        className="block px-4 py-2.5 text-[13px] text-white/80 transition-colors hover:bg-white/[0.06]"
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        href="/dashboard/new"
+                        className="block px-4 py-2.5 text-[13px] text-white/80 transition-colors hover:bg-white/[0.06]"
+                      >
+                        Create interview
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => signOut({ callbackUrl: "/" })}
+                        className="block w-full px-4 py-2.5 text-left text-[13px] text-red-300 transition-colors hover:bg-red-500/10"
+                      >
+                        Sign out
+                      </button>
+                    </div>
                   )}
-                </Link>
+                </div>
               </>
             ) : (
               <>

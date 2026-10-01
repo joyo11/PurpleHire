@@ -184,29 +184,18 @@ type PHLogoProps = {
 };
 export function PHLogo({
   size = "md",
-  mark = true,
   wordmark = true,
 }: PHLogoProps) {
-  const sz = { sm: "h-8 text-lg", md: "h-11 text-xl", lg: "h-14 text-2xl" }[
-    size
-  ];
+  // Full horizontal lockup (icon + "PurpleHire") and icon-only are baked assets
+  // extracted from the brand sheet, so the wordmark matches the brand exactly.
+  const h = { sm: "h-8", md: "h-11", lg: "h-14" }[size];
   return (
-    <div className={`inline-flex items-center gap-2.5 ${sz}`}>
-      {mark && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src="/brand-mark.png"
-          alt="PurpleHire"
-          className="h-full w-auto object-contain"
-        />
-      )}
-      {wordmark && (
-        <span className="font-bold tracking-tight">
-          <span className="text-white">Purple</span>
-          <span className="ph-grad-text">Hire</span>
-        </span>
-      )}
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={wordmark ? "/logo-full.png" : "/brand-mark.png"}
+      alt="PurpleHire"
+      className={`${h} w-auto object-contain`}
+    />
   );
 }
 
